@@ -86,6 +86,9 @@ telegram_alert() {
             "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d "chat_id=${TELEGRAM_CHAT_ID}" \
             -d "text=${msg}" >/dev/null
+        warn "Notifikasi sudah dikirim ke Telegram admin"
+    else
+        echo "  Telegram tidak dikonfigurasi — lewati notifikasi"
     fi
 }
 
@@ -358,15 +361,20 @@ cmd_check() {
     echo "Device: ${ACTIVE_DEVICE} (${SSH_USER}@${SSH_HOST}:${SSH_PORT})"
     echo ""
 
-    if run_timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes "$ACTIVE_DEVICE" "echo connected"; then
+    if run_timeout 10 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 "$ACTIVE_DEVICE" "echo connected"; then
         info "Koneksi OK"
         echo ""
         info "Gunakan ssh $ACTIVE_DEVICE untuk koneksi"
     else
         error "Koneksi GAGAL"
-        telegram_alert "🚨 *Koneksi Termux PUTUS*%0ADevice: ${ACTIVE_DEVICE}%0AHost: ${SSH_USER}@${SSH_HOST}:${SSH_PORT}%0AWaktu: $(date)"
+        echo "  Penyebab umum:"
+        echo "  - HP mati/dalam keadaan sleep"
+        echo "  - Termux di-swipe (close) dari recent apps"
+        echo "  - sshd crash atau berhenti"
         echo ""
-        warn "Notifikasi sudah dikirim ke Telegram admin"
+        echo "  Di HP: buka Termux, jalankan: sshd"
+        echo ""
+        telegram_alert "🚨 *Koneksi Termux PUTUS*%0ADevice: ${ACTIVE_DEVICE}%0AHost: ${SSH_USER}@${SSH_HOST}:${SSH_PORT}%0AWaktu: $(date)"
         echo ""
         echo -n "Coba lagi? [y/N]: "
         read -r retry

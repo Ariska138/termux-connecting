@@ -144,30 +144,16 @@ USERNAME=$(whoami)
 
 IP=""
 if command -v ip >/dev/null; then
-    IP=$(ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1 | head -1)
+    IP=$(timeout 3 ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1 | head -1)
 fi
 if [ -z "$IP" ] && command -v ifconfig >/dev/null; then
-    IP=$(ifconfig 2>/dev/null | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1)
-fi
-if [ -z "$IP" ] && command -v hostname >/dev/null; then
-    IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    IP=$(timeout 3 ifconfig 2>/dev/null | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1)
 fi
 if [ -z "$IP" ] && [ -d /data/data/com.termux ]; then
-    IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}' | head -1)
+    IP=$(timeout 3 ip route get 1.1.1.1 2>/dev/null | awk '{print $7}' | head -1)
 fi
 if [ -z "$IP" ]; then
     IP=""
-fi
-
-WIFI_SSID=""
-if command -v termux-wifi-connectioninfo >/dev/null; then
-    WIFI_SSID=$(termux-wifi-connectioninfo 2>/dev/null | grep -o '"ssid":"[^"]*"' | cut -d'"' -f4)
-fi
-if [ -z "$WIFI_SSID" ] && command -v iw >/dev/null; then
-    WIFI_SSID=$(iw dev wlan0 link 2>/dev/null | grep -i ssid | sed 's/.*SSID: //')
-fi
-if [ -z "$WIFI_SSID" ] && [ -r /proc/net/wireless ]; then
-    WIFI_SSID=$(awk 'NR==3{print $1}' /proc/net/wireless 2>/dev/null | tr -d ':')
 fi
 
 is_cgnat() {
@@ -181,9 +167,6 @@ is_wifi() {
 echo "  Username : $USERNAME"
 echo "  IP       : ${IP:-tidak terdeteksi}"
 echo "  Port     : 8022"
-if [ -n "$WIFI_SSID" ]; then
-    echo "  WiFi     : $WIFI_SSID"
-fi
 echo ""
 
 CONNECTION_OK=false
@@ -195,7 +178,7 @@ if [ -z "$IP" ]; then
     echo "  1. Buka Pengaturan → WiFi, hubungkan ke jaringan rumah/kantor"
     echo "  2. Setelah terhubung, jalankan ulang: termux-connecting -y"
 elif is_cgnat "$IP"; then
-    warn "IP ${IP} terdeteksi sebagai jaringan SELULER/VPN${WIFI_SSID:+ (WiFi terdeteksi: $WIFI_SSID)}"
+    warn "IP ${IP} terdeteksi sebagai jaringan SELULER/VPN"
     echo "  PC dan HP harus dalam jaringan WiFi yang SAMA."
     echo ""
     echo "  Langkah:"
@@ -213,18 +196,13 @@ elif is_wifi "$IP"; then
     echo "  Lalu isi data di atas saat diminta."
     echo "  Setelah setup, cukup: ssh ${HOST_ALIAS:-termux-a8star}"
     echo ""
-    if [ -n "$WIFI_SSID" ]; then
-        echo "  PC harus terhubung ke WiFi: ${WIFI_SSID}"
-    else
-        warn "Pastikan HP dan PC terhubung ke jaringan WiFi YANG SAMA"
-    fi
+    warn "Pastikan HP dan PC terhubung ke jaringan WiFi YANG SAMA"
     echo ""
     echo "  Data koneksi — simpan untuk setup PC:"
     echo "  ┌──────────────────────────────────┐"
     printf "  │ %-32s │\n" "Username : $USERNAME"
     printf "  │ %-32s │\n" "IP       : $IP"
     printf "  │ %-32s │\n" "Port     : 8022"
-    [ -n "$WIFI_SSID" ] && printf "  │ %-32s │\n" "WiFi     : $WIFI_SSID"
     echo "  └──────────────────────────────────┘"
 else
     warn "IP ${IP} tidak dikenal — mungkin bukan jaringan lokal"
@@ -241,32 +219,22 @@ info "Setup selesai!"
 echo ""
 
 # ─── Opsional: Cek Permission (hanya jika koneksi OK) ───
-if [ "$CONNECTION_OK" = "true" ] && [ "$AUTO" = "false" ] && confirm "Cek permission & fitur tambahan (WiFi SSID, storage, auto-start)" "n"; then
+if [ "$CONNECTION_OK" = "true" ] && [ "$AUTO" = "false" ] && confirm "Cek permission tambahan (storage, auto-start sshd)" "n"; then
     echo ""
     title "Status Permission & Fitur"
 
-    HAS_API="no"; HAS_STORAGE="no"; HAS_BOOT="no"
+    HAS_STORAGE="no"; HAS_BOOT="no"
 
-    command -v termux-wifi-connectioninfo >/dev/null 2>&1 && HAS_API="yes"
     [ -d "$HOME/storage" ] && HAS_STORAGE="yes"
     [ -f "$HOME/.termux/boot/boot-sshd" ] && HAS_BOOT="yes"
 
     echo "  ┌─────────────────────────────────────────────┐"
-    [ "$HAS_API" = "yes" ] && echo "  │  ✅  Termux:API   — WiFi SSID          │" \
-                           || echo "  │  ❌  Termux:API   — WiFi SSID          │"
     [ "$HAS_STORAGE" = "yes" ] && echo "  │  ✅  Storage      — akses penyimpanan  │" \
                                || echo "  │  ❌  Storage      — akses penyimpanan  │"
     [ "$HAS_BOOT" = "yes" ] && echo "  │  ✅  Termux:Boot  — auto-start sshd    │" \
                             || echo "  │  ❌  Termux:Boot  — auto-start sshd    │"
     echo "  └─────────────────────────────────────────────┘"
     echo ""
-
-    if [ "$HAS_API" = "no" ] && confirm "  Install Termux:API (WiFi SSID)" "y"; then
-        pkg install -y termux-api
-        echo "  Install aplikasi Termux:API dari F-Droid:"
-        echo "  https://f-droid.org/packages/com.termux.api/"
-        echo ""
-    fi
 
     if [ "$HAS_STORAGE" = "no" ] && confirm "  Setup storage permission" "y"; then
         termux-setup-storage

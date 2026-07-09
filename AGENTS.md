@@ -29,11 +29,11 @@ termux-connect-pc version       Versi
 
 ## Versioning
 
-Format: `YYYY.M.P` — **Tahun.Bulan.Jumlah Publish**
+Format: `Y.M.P`
 
-- **Major**: Tahun (YYYY)
-- **Minor**: Bulan (M)
-- **Patch**: Hitungan publish/push
+- **Major**: Urutan tahun (1 = tahun pertama, 2 = tahun kedua, ...)
+- **Minor**: Bulan (1-12)
+- **Patch**: Hitungan publish di versi tersebut
 
 Update `version` di `package.json` setiap kali publish ke npm.
 

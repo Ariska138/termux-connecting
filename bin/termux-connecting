@@ -53,11 +53,18 @@ else
     echo "  Untuk mengganti ke repo stable, jalankan:"
     echo "  termux-change-repo"
     echo ""
+    echo "  Pilih mirror yang stabil:"
+    echo "  - SourceForge (SF) — paling stabil"
+    echo "  - Grimler — recommended"
+    echo "  - Albatross — alternatif"
+    echo ""
     echo -n "  Ingin ganti repo sekarang? [y/N]: "
     read -r change_repo
     if [[ "$change_repo" =~ ^[Yy]$ ]]; then
         termux-change-repo
-        echo "  Ulangi update setelah selesai."
+        echo ""
+        echo "  Ulangi update setelah selesai:"
+        echo "  termux-connecting"
     fi
 fi
 

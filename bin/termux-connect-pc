@@ -44,7 +44,7 @@ setup_cloudflare_tunnel() {
     local cloudflared_bin="cloudflared"
     local tunnel_dir="$HOME/.cloudflared"
 
-    if ! command -v "$cloudflared_bin" &>/dev/null; then
+    if ! command -v "$cloudflared_bin"; then
         warn "cloudflared belum terinstall."
         echo ""
         echo "  Install dulu:"
@@ -55,14 +55,14 @@ setup_cloudflare_tunnel() {
         read -r install_cf
         if [[ "$install_cf" =~ ^[Yy]$ ]]; then
             if [[ "$(uname)" == "Darwin" ]]; then
-                if command -v brew &>/dev/null; then
+                if command -v brew; then
                     brew install cloudflared && info "cloudflared terinstall"
                 else
                     error "Homebrew tidak ditemukan. Install manual."
                     return
                 fi
             elif [[ "$(uname)" == "Linux" ]]; then
-                curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared 2>/dev/null && chmod +x /usr/local/bin/cloudflared && info "cloudflared terinstall"
+                curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared && info "cloudflared terinstall"
             else
                 error "OS tidak dikenal. Install manual."
                 return
@@ -147,7 +147,7 @@ main() {
         if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -lt "$i" ]; then
             select_host="${known_hosts[$((choice-1))]}"
             info "Menggunakan host: $select_host"
-            if ssh -o ConnectTimeout=5 -o BatchMode=yes "$select_host" "echo connected" 2>/dev/null; then
+            if ssh -o ConnectTimeout=5 -o BatchMode=yes "$select_host" "echo connected"; then
                 info "Koneksi SSH berhasil dengan host $select_host"
                 echo ""
                 echo -n "Ingin setup tunnel Cloudflare? [y/N]: "
@@ -174,11 +174,11 @@ main() {
     echo "Mencoba koneksi ke ${username}@${ip}:${SSH_PORT}..."
 
     local connected=false
-    if ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${username}@${ip}" "echo connected" 2>/dev/null; then
+    if ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${username}@${ip}" "echo connected"; then
         info "Koneksi SSH berhasil (key-based)"
         connected=true
-    elif command -v sshpass &>/dev/null; then
-        if sshpass -p "$password" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p "$SSH_PORT" "${username}@${ip}" "echo connected" 2>/dev/null; then
+    elif command -v sshpass; then
+        if sshpass -p "$password" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p "$SSH_PORT" "${username}@${ip}" "echo connected"; then
             info "Koneksi SSH berhasil (password)"
             connected=true
         fi
@@ -193,7 +193,7 @@ main() {
         echo "  - IP yang dimasukkan benar"
         echo ""
         echo "  Cek IP di Termux: ip a | grep inet"
-        if ! command -v sshpass &>/dev/null; then
+        if ! command -v sshpass; then
             echo ""
             warn "Install sshpass untuk koneksi otomatis pakai password:"
             echo "  Mac : brew install hudochenkov/sshpass/sshpass"
@@ -210,16 +210,16 @@ main() {
         echo -n "Buat SSH key untuk koneksi tanpa password? [Y/n]: "
         read -r make_key
         if [[ -z "$make_key" || "$make_key" =~ ^[Yy]$ ]]; then
-            ssh-keygen -t ed25519 -f "$SSH_KEY" -N "" -C "termux-connect" 2>/dev/null
+            ssh-keygen -t ed25519 -f "$SSH_KEY" -N "" -C "termux-connect"
             info "SSH key dibuat: $SSH_KEY.pub"
         fi
     fi
 
     if [ -f "$SSH_KEY" ]; then
         echo "Mencoba copy public key ke perangkat..."
-        if ssh-copy-id -o StrictHostKeyChecking=no -p "$SSH_PORT" "${username}@${ip}" 2>/dev/null; then
+        if ssh-copy-id -o StrictHostKeyChecking=no -p "$SSH_PORT" "${username}@${ip}"; then
             info "SSH key berhasil di-copy. Koneksi tanpa password siap!"
-            if ssh -o BatchMode=yes -p "$SSH_PORT" "${username}@${ip}" "echo connected" 2>/dev/null; then
+            if ssh -o BatchMode=yes -p "$SSH_PORT" "${username}@${ip}" "echo connected"; then
                 info "Verifikasi key-based login: berhasil"
             fi
         else
@@ -233,7 +233,7 @@ main() {
     local host_alias
     host_alias=$(get_input "Nama alias untuk koneksi ini" "termux-a8star")
     mkdir -p "$HOME/.ssh"
-    if ! grep -q "Host $host_alias$" "$SSH_CONFIG" 2>/dev/null; then
+    if ! grep -q "Host $host_alias$" "$SSH_CONFIG"; then
         cat >> "$SSH_CONFIG" << EOF
 
 Host $host_alias

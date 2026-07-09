@@ -37,8 +37,8 @@ fi
 
 title "2. Cek Git & Node.js"
 for cmd in git node; do
-    if command -v "$cmd" &>/dev/null; then
-        info "$cmd sudah terinstall ($($cmd --version 2>/dev/null || echo '?'))"
+    if command -v "$cmd"; then
+        info "$cmd sudah terinstall ($($cmd --version || echo '?'))"
     else
         warn "$cmd belum terinstall."
         echo -n "  Install $cmd sekarang? [Y/n]: "
@@ -52,7 +52,7 @@ for cmd in git node; do
 done
 
 title "3. Cek Password (passwd)"
-if [ -f "$HOME/.termux_authinfo" ] || passwd -S 2>/dev/null | grep -q "P" 2>/dev/null; then
+if [ -f "$HOME/.termux_authinfo" ] || passwd -S | grep -q "P"; then
     info "Password sudah diatur"
 else
     warn "Belum ada password. Setting password diperlukan untuk SSH."

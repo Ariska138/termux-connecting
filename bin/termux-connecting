@@ -261,7 +261,7 @@ if [ -z "$gateway" ] && command -v getprop >/dev/null; then
 fi
 if [ -n "$gateway" ]; then
     result=$(run_timeout 5 ping -c 2 -W 2 "$gateway" 2>&1)
-    loss=$(echo "$result" | awk '/loss/{print $6}' | tr -d '%')
+    loss=$(echo "$result" | grep -oE '[0-9]+(\.[0-9]+)?%' | head -1 | tr -d '%' | cut -d. -f1)
     if [ -n "$loss" ] && [ "$loss" -lt 1 ] 2>/dev/null; then
         info "Jaringan stabil (0% loss) — IP: $ip"
     else
@@ -414,7 +414,7 @@ gateway=$(run_timeout 3 ip route 2>/dev/null | awk '/default via/{print $3}' | h
     if [ -n "$gateway" ]; then
         echo "  Gateway: $gateway"
     result=$(run_timeout 5 ping -c 2 -W 2 "$gateway" 2>&1)
-        loss=$(echo "$result" | awk '/loss/{print $6}' | tr -d '%')
+        loss=$(echo "$result" | grep -oE '[0-9]+(\.[0-9]+)?%' | head -1 | tr -d '%' | cut -d. -f1)
         if [ -n "$loss" ] && [ "$loss" -lt 1 ] 2>/dev/null; then
             STABLE=true
             info "Jaringan stabil (0% loss)"

@@ -165,7 +165,7 @@ cmd_connection() {
     echo "  Ping $SSH_HOST untuk verifikasi..."
     if command -v ping >/dev/null; then
         result=$(run_timeout 5 ping -c 2 -W 2 "$SSH_HOST" 2>&1)
-        loss=$(echo "$result" | awk '/loss/{print $6}' | tr -d '%')
+        loss=$(echo "$result" | grep -oE '[0-9]+(\.[0-9]+)?%' | head -1 | tr -d '%' | cut -d. -f1)
         if [ -n "$loss" ] && [ "$loss" -lt 1 ] 2>/dev/null; then
             rtt=$(echo "$result" | awk -F'/' '/rtt/{print $5}')
             info "HP reachable (RTT: ${rtt}ms)"

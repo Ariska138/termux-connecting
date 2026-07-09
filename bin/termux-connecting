@@ -200,7 +200,7 @@ fi
 
 # wake lock — cegah Termux dimatikan saat layar mati
 if command -v termux-wake-lock >/dev/null; then
-    termux-wake-lock sshd 2>/dev/null && info "Wake lock aktif — koneksi tetap terjaga saat layar mati"
+    termux-wake-lock 2>/dev/null && info "Wake lock aktif — koneksi tetap terjaga saat layar mati"
 fi
 
 # notification — agar Android tidak kill Termux
@@ -345,7 +345,7 @@ if [ "$AUTO" = "false" ]; then
                 if [ "$HAS_STORAGE" = "no" ] && confirm "  Setup storage permission" "y"; then termux-setup-storage; echo "  Izininkan pop-up permission di Android"; echo ""; fi
                 if [ "$HAS_WAKE" = "no" ] && confirm "  Install wake lock (termux-api)" "y"; then pkg install -y termux-api; echo "  Install aplikasi Termux:API dari F-Droid:"; echo "  https://f-droid.org/packages/com.termux.api/"; echo ""; fi
                 if [ "$HAS_BOOT" = "no" ] && confirm "  Setup auto-start sshd (Termux:Boot)" "y"; then mkdir -p "$HOME/.termux/boot"; echo 'sshd' > "$HOME/.termux/boot/boot-sshd"; chmod +x "$HOME/.termux/boot/boot-sshd"; info "Boot script: ~/.termux/boot/boot-sshd"; echo "  https://f-droid.org/packages/com.termux.boot/"; echo "  Reboot HP agar sshd jalan otomatis"; echo ""; fi
-                [ "$HAS_WAKE" = "yes" ] && termux-wake-lock sshd 2>/dev/null && info "Wake lock aktif"
+                [ "$HAS_WAKE" = "yes" ] && termux-wake-lock 2>/dev/null && info "Wake lock aktif"
                 ;;
             *) break ;;
         esac

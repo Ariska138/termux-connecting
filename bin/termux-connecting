@@ -13,6 +13,32 @@ warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
 error() { echo -e "${RED}[✗]${NC} $1"; }
 title() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}\n"; }
 
+WELCOME_FILE="$HOME/.config/termux-connecting/.welcomed"
+if [ ! -f "$WELCOME_FILE" ]; then
+    echo ""
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${GREEN}  termux-connecting berhasil diinstall!${NC}"
+    echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "${CYAN}Script ini akan membantu kamu:${NC}"
+    echo "  1. Update & upgrade paket Termux"
+    echo "  2. Install Git & Node.js (jika perlu)"
+    echo "  3. Set password untuk SSH"
+    echo "  4. Tampilkan IP untuk koneksi dari PC"
+    echo ""
+    echo -e "${CYAN}Di PC/Mac, jalankan:${NC}"
+    echo "  termux-connect-pc"
+    echo ""
+    echo -e "${CYAN}Subcommand PC:${NC}"
+    echo "  termux-connect-pc connection    Setup/ubah koneksi"
+    echo "  termux-connect-pc check         Cek koneksi & kirim alert Telegram"
+    echo "  termux-connect-pc help          Bantuan"
+    echo "  termux-connect-pc version       Versi"
+    echo ""
+    mkdir -p "$HOME/.config/termux-connecting"
+    touch "$WELCOME_FILE"
+fi
+
 title "TERMUX CONNECTING — Setup"
 echo "Memeriksa dan mengkonfigurasi Termux..."
 echo "----------------------------------------"

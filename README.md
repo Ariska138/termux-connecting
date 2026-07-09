@@ -9,6 +9,13 @@ CLI untuk setup Termux dan koneksi SSH dari PC/Mac — plus Telegram alert jika 
 Jalankan di HP (Termux):
 
 ```bash
+pkg install -y nodejs-lts
+npm i -g termux-connecting
+```
+
+Atau via curl installer (tanpa Node.js):
+
+```bash
 curl -fsSL https://raw.githubusercontent.com/Ariska138/termux-connecting/main/install.sh | bash
 ```
 
@@ -34,12 +41,10 @@ Simpan info username dan IP yang muncul. Ini yang akan dipakai dari PC.
 
 ### 3. Install & Koneksi dari PC/Mac
 
-Di komputer, clone repo:
+Di komputer, install:
 
 ```bash
-git clone https://github.com/Ariska138/termux-connecting.git
-cd termux-connecting
-sudo ln -sf "$PWD/bin/termux-connect-pc" /usr/local/bin/termux-connect-pc
+npm i -g termux-connecting
 ```
 
 Lalu jalankan:

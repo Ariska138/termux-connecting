@@ -382,6 +382,11 @@ cmd_remove() {
     local name="$1"
     if [ -z "$name" ]; then
         error "Nama device diperlukan"
+        echo ""
+        echo "  Device terdaftar:"
+        list_devices
+        echo ""
+        echo "  Gunakan: termux-connect-pc remove <nama>"
         return
     fi
     if [ ! -f "$DEVICES_DIR/$name" ]; then
@@ -451,12 +456,24 @@ main() {
                 echo "  1) Konek ke ${ACTIVE_DEVICE}"
                 echo "  2) Tambah device baru"
                 echo "  3) Lihat daftar device"
+                echo "  4) Hapus device"
                 echo ""
                 echo -n "  Pilih [1]: "
                 read -r choice
                 case "$choice" in
                     2) cmd_connection ;;
                     3) cmd_list ;;
+                    4)
+                        echo ""
+                        echo "  Device terdaftar:"
+                        list_devices
+                        echo ""
+                        local del_name
+                        del_name=$(prompt "  ➤  Nama device yg dihapus" "")
+                        if [ -n "$del_name" ]; then
+                            cmd_remove "$del_name"
+                        fi
+                        ;;
                     *) cmd_check ;;
                 esac
             fi

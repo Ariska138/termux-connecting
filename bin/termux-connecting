@@ -17,7 +17,7 @@ DEBUG=false
 for arg in "$@"; do
     [ "$arg" = "-y" ] && AUTO=true
     [ "$arg" = "--check" ] || [ "$arg" = "--status" ] && CHECK=true
-    [ "$arg" = "--monitor" ] && MONITOR=true
+    [ "$arg" = "--monitor" ] || [ "$arg" = "--monitoring" ] && MONITOR=true
     [ "$arg" = "--help" ] || [ "$arg" = "-h" ] && HELP=true
     [ "$arg" = "--debug" ] && DEBUG=true
 done
@@ -60,7 +60,7 @@ if $CHECK; then
     fi
     echo ""
     echo "  🌐 Network    :"
-    for iface in wlan0 eth0; do
+    for iface in wlan0 wlan1 eth0 eth1 wlp2s0 wlp3s0 en0 en1; do
         addr=$(timeout 2 ip -4 addr show $iface 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1)
         if [ -n "$addr" ]; then
             echo "     $iface : $addr"
@@ -116,12 +116,18 @@ monitor_loop() {
         local ip=""
         local sshd_pid=""
 
-        for iface in wlan0 eth0; do
+        for iface in wlan0 wlan1 eth0 eth1 wlp2s0 wlp3s0 en0 en1; do
             ip=$(timeout 2 ip -4 addr show $iface 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1)
             [ -n "$ip" ] && break
         done
         if [ -z "$ip" ]; then
             ip=$(timeout 2 ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
+        fi
+        if [ -z "$ip" ] && command -v ifconfig >/dev/null; then
+            ip=$(timeout 2 ifconfig 2>/dev/null | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1)
+        fi
+        if [ -z "$ip" ]; then
+            ip=$(timeout 2 ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1 | head -1)
         fi
         ip="${ip:-❌ Tidak ada IP}"
 

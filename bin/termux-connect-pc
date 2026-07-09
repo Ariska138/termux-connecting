@@ -414,11 +414,26 @@ main() {
         *)
             load_active
             if [ -z "$ACTIVE_DEVICE" ]; then
-                echo "Belum ada device. Setup koneksi pertama."
+                echo ""
+                echo "  Ini pertama kali kamu jalankan termux-connect-pc."
+                echo "  Kita akan setup koneksi ke Termux di HP kamu."
                 echo ""
                 cmd_connection
             else
-                cmd_help
+                echo ""
+                echo "  Device aktif saat ini: ${ACTIVE_DEVICE}"
+                echo ""
+                echo "  1) Konek ke ${ACTIVE_DEVICE}"
+                echo "  2) Tambah device baru"
+                echo "  3) Lihat daftar device"
+                echo ""
+                echo -n "  Pilih [1]: "
+                read -r choice
+                case "$choice" in
+                    2) cmd_connection ;;
+                    3) cmd_list ;;
+                    *) cmd_check ;;
+                esac
             fi
             ;;
     esac

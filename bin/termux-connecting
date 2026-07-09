@@ -138,8 +138,8 @@ else
     fi
 fi
 
-# ─── 7. Informasi Koneksi ───
-title "6. Informasi Koneksi"
+# ─── 6. Informasi Koneksi ───
+title "5. Informasi Koneksi"
 USERNAME=$(whoami)
 
 IP=""
@@ -239,40 +239,40 @@ info "Setup selesai!"
 echo ""
 
 # ─── Opsional: Cek Permission ───
-if confirm "Cek permission & fitur tambahan (WiFi SSID, storage, auto-start)" "n"; then
+if [ "$AUTO" = "false" ] && confirm "Cek permission & fitur tambahan (WiFi SSID, storage, auto-start)" "n"; then
     echo ""
     title "Status Permission & Fitur"
 
-    HAS_API=false; HAS_STORAGE=false; HAS_BOOT=false
+    HAS_API="no"; HAS_STORAGE="no"; HAS_BOOT="no"
 
-    command -v termux-wifi-connectioninfo >/dev/null 2>&1 && HAS_API=true
-    [ -d "$HOME/storage" ] && HAS_STORAGE=true
-    [ -f "$HOME/.termux/boot/boot-sshd" ] && HAS_BOOT=true
+    command -v termux-wifi-connectioninfo >/dev/null 2>&1 && HAS_API="yes"
+    [ -d "$HOME/storage" ] && HAS_STORAGE="yes"
+    [ -f "$HOME/.termux/boot/boot-sshd" ] && HAS_BOOT="yes"
 
     echo "  ┌─────────────────────────────────────────────┐"
-    $HAS_API   && echo "  │  ✅  Termux:API   — WiFi SSID          │" \
-              || echo "  │  ❌  Termux:API   — WiFi SSID          │"
-    $HAS_STORAGE && echo "  │  ✅  Storage      — akses penyimpanan  │" \
-                || echo "  │  ❌  Storage      — akses penyimpanan  │"
-    $HAS_BOOT  && echo "  │  ✅  Termux:Boot  — auto-start sshd    │" \
-              || echo "  │  ❌  Termux:Boot  — auto-start sshd    │"
+    [ "$HAS_API" = "yes" ] && echo "  │  ✅  Termux:API   — WiFi SSID          │" \
+                           || echo "  │  ❌  Termux:API   — WiFi SSID          │"
+    [ "$HAS_STORAGE" = "yes" ] && echo "  │  ✅  Storage      — akses penyimpanan  │" \
+                               || echo "  │  ❌  Storage      — akses penyimpanan  │"
+    [ "$HAS_BOOT" = "yes" ] && echo "  │  ✅  Termux:Boot  — auto-start sshd    │" \
+                            || echo "  │  ❌  Termux:Boot  — auto-start sshd    │"
     echo "  └─────────────────────────────────────────────┘"
     echo ""
 
-    if ! $HAS_API && confirm "  Install Termux:API (WiFi SSID)" "y"; then
+    if [ "$HAS_API" = "no" ] && confirm "  Install Termux:API (WiFi SSID)" "y"; then
         pkg install -y termux-api
         echo "  Install aplikasi Termux:API dari F-Droid:"
         echo "  https://f-droid.org/packages/com.termux.api/"
         echo ""
     fi
 
-    if ! $HAS_STORAGE && confirm "  Setup storage permission" "y"; then
+    if [ "$HAS_STORAGE" = "no" ] && confirm "  Setup storage permission" "y"; then
         termux-setup-storage
         echo "  Izininkan pop-up permission di Android"
         echo ""
     fi
 
-    if ! $HAS_BOOT && confirm "  Setup auto-start sshd (Termux:Boot)" "y"; then
+    if [ "$HAS_BOOT" = "no" ] && confirm "  Setup auto-start sshd (Termux:Boot)" "y"; then
         mkdir -p "$HOME/.termux/boot"
         echo 'sshd' > "$HOME/.termux/boot/boot-sshd"
         chmod +x "$HOME/.termux/boot/boot-sshd"

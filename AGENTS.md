@@ -31,9 +31,22 @@ termux-connect-pc version       Versi
 
 Format: `Y.M.P`
 
-- **Major**: Urutan tahun (1 = tahun pertama, 2 = tahun kedua, ...)
+- **Major**: Urutan tahun (1 = 2026, 2 = 2027, ...)
 - **Minor**: Urutan bulan (1 = Juli 2026, 2 = Agustus 2026, ...)
 - **Patch**: Hitungan publish di versi tersebut
+
+### Publish
+
+Cukup jalankan, semua otomatis:
+
+```bash
+npm publish
+```
+
+Alur:
+1. `prepublishOnly` → `scripts/bump-version.sh`: hitung versi baru, update file, commit
+2. `npm publish` → kirim ke registry
+3. `postpublish` → `git push`
 
 Update `version` di `package.json` setiap kali publish ke npm.
 

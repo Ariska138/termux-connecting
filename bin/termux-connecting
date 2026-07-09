@@ -70,7 +70,11 @@ for cmd in git node; do
         echo -n "  Install $cmd sekarang? [Y/n]: "
         read -r install_it
         if [[ -z "$install_it" || "$install_it" =~ ^[Yy]$ ]]; then
-            pkg install -y "$cmd" && info "$cmd berhasil diinstall" || error "Gagal install $cmd"
+            if [ "$cmd" = "node" ]; then
+                pkg install -y nodejs-lts && info "$cmd berhasil diinstall" || error "Gagal install $cmd"
+            else
+                pkg install -y "$cmd" && info "$cmd berhasil diinstall" || error "Gagal install $cmd"
+            fi
         else
             warn "Lewati install $cmd"
         fi

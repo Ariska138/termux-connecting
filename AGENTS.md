@@ -27,6 +27,16 @@ termux-connect-pc version       Versi
 
 `~/.config/termux-connecting/config` — auto-generated, jangan commit.
 
+## Versioning
+
+Format: `YYYY.M.P` — **Tahun.Bulan.Jumlah Publish**
+
+- **Major**: Tahun (YYYY)
+- **Minor**: Bulan (M)
+- **Patch**: Hitungan publish/push
+
+Update `version` di `package.json` setiap kali publish ke npm.
+
 ## Aturan
 
 - Jangan commit token/credential ke git

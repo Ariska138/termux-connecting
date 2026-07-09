@@ -186,8 +186,9 @@ if [ -n "$WIFI_SSID" ]; then
 fi
 echo ""
 
+CONNECTION_OK=false
+
 if [ -z "$IP" ]; then
-    warn "IP tidak terdeteksi"
     echo "  Pastikan HP terhubung ke WiFi, bukan data seluler."
     echo ""
     echo "  Langkah:"
@@ -204,6 +205,7 @@ elif is_cgnat "$IP"; then
     echo "  4. Jalankan ulang: termux-connecting -y"
     echo "  5. Atau cek IP manual: ip a | grep wlan"
 elif is_wifi "$IP"; then
+    CONNECTION_OK=true
     echo "  Di PC/Mac, jalankan perintah berikut:"
     echo "  npm i -g termux-connecting"
     echo "  termux-connect-pc"
@@ -238,8 +240,8 @@ echo "----------------------------------------"
 info "Setup selesai!"
 echo ""
 
-# ─── Opsional: Cek Permission ───
-if [ "$AUTO" = "false" ] && confirm "Cek permission & fitur tambahan (WiFi SSID, storage, auto-start)" "n"; then
+# ─── Opsional: Cek Permission (hanya jika koneksi OK) ───
+if [ "$CONNECTION_OK" = "true" ] && [ "$AUTO" = "false" ] && confirm "Cek permission & fitur tambahan (WiFi SSID, storage, auto-start)" "n"; then
     echo ""
     title "Status Permission & Fitur"
 

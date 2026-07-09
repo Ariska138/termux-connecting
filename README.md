@@ -12,13 +12,6 @@ Jalankan di HP (Termux):
 curl -fsSL https://raw.githubusercontent.com/Ariska138/termux-connecting/main/install.sh | bash
 ```
 
-Atau via npm (wajib install Node.js dulu):
-
-```bash
-pkg install -y nodejs-lts
-npm i -g termux-connecting
-```
-
 ### 2. Setup Perangkat Termux
 
 ```bash
@@ -41,10 +34,12 @@ Simpan info username dan IP yang muncul. Ini yang akan dipakai dari PC.
 
 ### 3. Install & Koneksi dari PC/Mac
 
-Di komputer, install:
+Di komputer, clone repo:
 
 ```bash
-npm i -g termux-connecting
+git clone https://github.com/Ariska138/termux-connecting.git
+cd termux-connecting
+sudo ln -sf "$PWD/bin/termux-connect-pc" /usr/local/bin/termux-connect-pc
 ```
 
 Lalu jalankan:

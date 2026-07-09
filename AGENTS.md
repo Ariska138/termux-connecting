@@ -32,7 +32,7 @@ termux-connect-pc version       Versi
 Format: `Y.M.P`
 
 - **Major**: Urutan tahun (1 = tahun pertama, 2 = tahun kedua, ...)
-- **Minor**: Bulan (1-12)
+- **Minor**: Urutan bulan (1 = Juli 2026, 2 = Agustus 2026, ...)
 - **Patch**: Hitungan publish di versi tersebut
 
 Update `version` di `package.json` setiap kali publish ke npm.

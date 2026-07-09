@@ -5,9 +5,11 @@ set -e
 ROOT="$(dirname "$(dirname "$0")")"
 YEAR=$(date +%Y)
 MONTH=$(date +%-m)
-YEAR_FIRST=2026
-MAJOR=$((YEAR - YEAR_FIRST + 1))
-VER="${MAJOR}.${MONTH}"
+FIRST_YEAR=2026
+FIRST_MONTH=7
+MAJOR=$((YEAR - FIRST_YEAR + 1))
+MINOR=$(( (YEAR - FIRST_YEAR) * 12 + (MONTH - FIRST_MONTH) + 1 ))
+VER="${MAJOR}.${MINOR}"
 
 # Baca current version
 CUR=$(grep '"version"' "$ROOT/package.json" | head -1 | sed 's/.*"version": "\(.*\)",/\1/')

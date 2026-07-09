@@ -232,55 +232,62 @@ echo "----------------------------------------"
 info "Setup selesai!"
 echo ""
 
-# ─── Opsional: Cek Permission (hanya jika koneksi OK) ───
-if [ "$CONNECTION_OK" = "true" ] && [ "$AUTO" = "false" ] && confirm "Cek permission & fitur (storage, auto-start, wake lock)" "n"; then
+# ─── Menu setelah setup ───
+if [ "$AUTO" = "false" ]; then
+    while true; do
+        echo ""
+        echo "  1) Selesai"
+        echo "  2) Matikan SSH server (sshd)"
+        echo "  3) Status SSH server"
+        echo "  4) Tampilkan ulang info koneksi"
+        echo "  5) Cek permission & fitur"
+        echo ""
+        echo -n "  Pilih [1]: "
+        read -r post_choice
+        echo ""
+        case "$post_choice" in
+            2)
+                if pgrep -x sshd >/dev/null; then
+                    pkill sshd && info "sshd dimatikan"
+                else
+                    warn "sshd sedang tidak berjalan"
+                fi
+                ;;
+            3)
+                if pgrep -x sshd >/dev/null; then
+                    info "sshd sedang berjalan (PID: $(pgrep -x sshd))"
+                else
+                    warn "sshd tidak berjalan. Jalankan: sshd"
+                fi
+                ;;
+            4)
+                echo "  Username : $USERNAME"
+                echo "  IP       : ${IP:-tidak terdeteksi}"
+                echo "  Port     : 8022"
+                echo ""
+                echo "  Di PC: termux-connect-pc connection"
+                ;;
+            5)
+                # reuse permission check block
+                HAS_STORAGE="no"; HAS_BOOT="no"; HAS_WAKE="no"
+                [ -d "$HOME/storage" ] && HAS_STORAGE="yes"
+                [ -f "$HOME/.termux/boot/boot-sshd" ] && HAS_BOOT="yes"
+                command -v termux-wake-lock >/dev/null 2>&1 && HAS_WAKE="yes"
+                title "Status Permission & Fitur"
+                echo "  ┌─────────────────────────────────────────────┐"
+                [ "$HAS_STORAGE" = "yes" ] && echo "  │  ✅  Storage      — akses penyimpanan  │" || echo "  │  ❌  Storage      — akses penyimpanan  │"
+                [ "$HAS_BOOT" = "yes" ] && echo "  │  ✅  Termux:Boot  — auto-start sshd    │" || echo "  │  ❌  Termux:Boot  — auto-start sshd    │"
+                [ "$HAS_WAKE" = "yes" ] && echo "  │  ✅  Wake lock    — koneksi tetap saat mati layar │" || echo "  │  ❌  Wake lock    — koneksi tetap saat mati layar │"
+                echo "  └─────────────────────────────────────────────┘"
+                echo ""
+                if [ "$HAS_STORAGE" = "no" ] && confirm "  Setup storage permission" "y"; then termux-setup-storage; echo "  Izininkan pop-up permission di Android"; echo ""; fi
+                if [ "$HAS_WAKE" = "no" ] && confirm "  Install wake lock (termux-api)" "y"; then pkg install -y termux-api; echo "  Install aplikasi Termux:API dari F-Droid:"; echo "  https://f-droid.org/packages/com.termux.api/"; echo ""; fi
+                if [ "$HAS_BOOT" = "no" ] && confirm "  Setup auto-start sshd (Termux:Boot)" "y"; then mkdir -p "$HOME/.termux/boot"; echo 'sshd' > "$HOME/.termux/boot/boot-sshd"; chmod +x "$HOME/.termux/boot/boot-sshd"; info "Boot script: ~/.termux/boot/boot-sshd"; echo "  https://f-droid.org/packages/com.termux.boot/"; echo "  Reboot HP agar sshd jalan otomatis"; echo ""; fi
+                [ "$HAS_WAKE" = "yes" ] && termux-wake-lock sshd 2>/dev/null && info "Wake lock aktif"
+                ;;
+            *) break ;;
+        esac
+    done
     echo ""
-    title "Status Permission & Fitur"
-
-    HAS_STORAGE="no"; HAS_BOOT="no"; HAS_WAKE="no"
-
-    [ -d "$HOME/storage" ] && HAS_STORAGE="yes"
-    [ -f "$HOME/.termux/boot/boot-sshd" ] && HAS_BOOT="yes"
-    command -v termux-wake-lock >/dev/null 2>&1 && HAS_WAKE="yes"
-
-    echo "  ┌─────────────────────────────────────────────┐"
-    [ "$HAS_STORAGE" = "yes" ] && echo "  │  ✅  Storage      — akses penyimpanan  │" \
-                               || echo "  │  ❌  Storage      — akses penyimpanan  │"
-    [ "$HAS_BOOT" = "yes" ] && echo "  │  ✅  Termux:Boot  — auto-start sshd    │" \
-                            || echo "  │  ❌  Termux:Boot  — auto-start sshd    │"
-    [ "$HAS_WAKE" = "yes" ] && echo "  │  ✅  Wake lock    — koneksi tetap saat mati layar │" \
-                            || echo "  │  ❌  Wake lock    — koneksi tetap saat mati layar │"
-    echo "  └─────────────────────────────────────────────┘"
-    echo ""
-
-    if [ "$HAS_STORAGE" = "no" ] && confirm "  Setup storage permission" "y"; then
-        termux-setup-storage
-        echo "  Izininkan pop-up permission di Android"
-        echo ""
-    fi
-
-    if [ "$HAS_WAKE" = "no" ] && confirm "  Install wake lock (termux-api)" "y"; then
-        pkg install -y termux-api
-        echo "  Install aplikasi Termux:API dari F-Droid:"
-        echo "  https://f-droid.org/packages/com.termux.api/"
-        echo "  Setelah itu wake lock otomatis aktif saat sshd jalan"
-        echo ""
-    fi
-
-    if [ "$HAS_BOOT" = "no" ] && confirm "  Setup auto-start sshd (Termux:Boot)" "y"; then
-        mkdir -p "$HOME/.termux/boot"
-        echo 'sshd' > "$HOME/.termux/boot/boot-sshd"
-        chmod +x "$HOME/.termux/boot/boot-sshd"
-        info "Boot script: ~/.termux/boot/boot-sshd"
-        echo "  Install aplikasi Termux:Boot dari F-Droid:"
-        echo "  https://f-droid.org/packages/com.termux.boot/"
-        echo "  Reboot HP agar sshd jalan otomatis"
-        echo ""
-    fi
-
-    if [ "$HAS_WAKE" = "yes" ]; then
-        termux-wake-lock sshd 2>/dev/null && info "Wake lock aktif"
-    fi
-
-    info "Permission & fitur selesai dicek"
+    info "Sampai jumpa!"
 fi

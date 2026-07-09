@@ -1,0 +1,14 @@
+{
+  "name": "termux-connecting",
+  "version": "1.0.0",
+  "description": "CLI untuk mempermudah setup Termux dan koneksi ke PC/Mac",
+  "bin": {
+    "termux-connecting": "./bin/termux-connecting"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Ariska138/termux-connecting.git"
+  },
+  "keywords": ["termux", "android", "ssh", "setup"],
+  "license": "MIT"
+}

@@ -239,46 +239,49 @@ info "Setup selesai!"
 echo ""
 
 # ─── Opsional: Cek Permission ───
-if confirm "Cek permission & install Termux:API/Boot (opsional)" "n"; then
+if confirm "Cek permission & fitur tambahan (WiFi SSID, storage, auto-start)" "n"; then
     echo ""
-    title "Cek Termux:API & Permission"
+    title "Status Permission & Fitur"
 
-    if command -v termux-wifi-connectioninfo >/dev/null 2>&1; then
-        info "Termux:API package terinstall"
-    else
-        echo "  Termux:API — untuk deteksi nama WiFi"
-        if confirm "  Install termux-api package" "y"; then
-            pkg install -y termux-api && info "termux-api terinstall"
-        fi
-        echo "  Install juga aplikasi Termux:API dari F-Droid:"
+    HAS_API=false; HAS_STORAGE=false; HAS_BOOT=false
+
+    command -v termux-wifi-connectioninfo >/dev/null 2>&1 && HAS_API=true
+    [ -d "$HOME/storage" ] && HAS_STORAGE=true
+    [ -f "$HOME/.termux/boot/boot-sshd" ] && HAS_BOOT=true
+
+    echo "  ┌─────────────────────────────────────────────┐"
+    $HAS_API   && echo "  │  ✅  Termux:API   — WiFi SSID          │" \
+              || echo "  │  ❌  Termux:API   — WiFi SSID          │"
+    $HAS_STORAGE && echo "  │  ✅  Storage      — akses penyimpanan  │" \
+                || echo "  │  ❌  Storage      — akses penyimpanan  │"
+    $HAS_BOOT  && echo "  │  ✅  Termux:Boot  — auto-start sshd    │" \
+              || echo "  │  ❌  Termux:Boot  — auto-start sshd    │"
+    echo "  └─────────────────────────────────────────────┘"
+    echo ""
+
+    if ! $HAS_API && confirm "  Install Termux:API (WiFi SSID)" "y"; then
+        pkg install -y termux-api
+        echo "  Install aplikasi Termux:API dari F-Droid:"
         echo "  https://f-droid.org/packages/com.termux.api/"
         echo ""
     fi
 
-    if [ -d "$HOME/storage" ]; then
-        info "Storage permission sudah diatur"
-    else
-        echo "  Storage permission — akses ke penyimpanan HP"
-        if confirm "  Jalankan termux-setup-storage" "y"; then
-            termux-setup-storage
-            echo "  Izininkan pop-up permission Android"
-        fi
+    if ! $HAS_STORAGE && confirm "  Setup storage permission" "y"; then
+        termux-setup-storage
+        echo "  Izininkan pop-up permission di Android"
         echo ""
     fi
 
-    if [ -f "$HOME/.termux/boot/boot-sshd" ]; then
-        info "Termux:Boot aktif — sshd auto-start saat HP nyala"
-    else
-        echo "  Termux:Boot — auto-start sshd setiap HP dinyalakan"
-        if confirm "  Setup boot script" "y"; then
-            mkdir -p "$HOME/.termux/boot"
-            echo 'sshd' > "$HOME/.termux/boot/boot-sshd"
-            chmod +x "$HOME/.termux/boot/boot-sshd"
-            info "Boot script dibuat: ~/.termux/boot/boot-sshd"
-        fi
+    if ! $HAS_BOOT && confirm "  Setup auto-start sshd (Termux:Boot)" "y"; then
+        mkdir -p "$HOME/.termux/boot"
+        echo 'sshd' > "$HOME/.termux/boot/boot-sshd"
+        chmod +x "$HOME/.termux/boot/boot-sshd"
+        info "Boot script: ~/.termux/boot/boot-sshd"
         echo "  Install aplikasi Termux:Boot dari F-Droid:"
         echo "  https://f-droid.org/packages/com.termux.boot/"
         echo "  Reboot HP agar sshd jalan otomatis"
         echo ""
     fi
+
+    info "Permission & fitur selesai dicek"
 fi

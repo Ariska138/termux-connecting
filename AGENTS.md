@@ -37,6 +37,21 @@ Format: `Y.M.P`
 
 ### Publish
 
+#### Persiapan
+
+Token npm dengan bypass 2FA disimpan di `.env` (sudah di `.gitignore`):
+
+```bash
+source .env
+npm set //registry.npmjs.org/:_authToken "$NPM_TOKEN"
+```
+
+Token berlaku ~90 hari. Jika kadaluarsa, generate baru di https://www.npmjs.com/settings/tokens
+dengan tipe **Granular Access Token** → scope `termux-connecting` → **Read and write** →
+centang **"Allow bypass 2FA"**, lalu update `.env`.
+
+#### Jalankan
+
 Cukup jalankan, semua otomatis:
 
 ```bash
@@ -48,7 +63,8 @@ Alur:
 2. `npm publish` → kirim ke registry
 3. `postpublish` → `git push`
 
-Update `version` di `package.json` setiap kali publish ke npm.
+> **Catatan**: Jika gagal `403 Forbidden — Two-factor authentication required`,
+> generate ulang token dengan bypass 2FA (lihat Persiapan di atas).
 
 ## Aturan
 

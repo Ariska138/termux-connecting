@@ -156,28 +156,63 @@ if [ -z "$IP" ] && [ -d /data/data/com.termux ]; then
     IP=$(ip route get 1.1.1.1 | awk '{print $7}' | head -1)
 fi
 if [ -z "$IP" ]; then
-    IP="(tidak terdeteksi — pastikan WiFi/data aktif)"
+    IP=""
 fi
 
+is_cgnat() {
+    [[ "$1" =~ ^10\. ]] || [[ "$1" =~ ^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\. ]]
+}
+
+is_wifi() {
+    [[ "$1" =~ ^192\.168\. ]] || [[ "$1" =~ ^172\.(1[6-9]|2[0-9]|3[01])\. ]]
+}
+
 echo "  Username : $USERNAME"
-echo "  IP       : $IP"
+echo "  IP       : ${IP:-tidak terdeteksi}"
 echo "  Port     : 8022"
 echo ""
-echo "  Di PC/Mac, jalankan perintah berikut:"
-echo "  npm i -g termux-connecting"
-echo "  termux-connect-pc"
-echo ""
-echo "  Lalu isi data di atas saat diminta."
-echo "  Setelah setup, cukup: ssh ${HOST_ALIAS:-termux-a8star}"
-echo ""
-warn "Pastikan HP dan PC terhubung ke jaringan WiFi YANG SAMA"
-echo ""
-echo "  Data koneksi — simpan untuk setup PC:"
-echo "  ┌─────────────────────────────┐"
-echo "  │ Username : $USERNAME         │"
-echo "  │ IP       : $IP               │"
-echo "  │ Port     : 8022              │"
-echo "  └─────────────────────────────┘"
+
+if [ -z "$IP" ]; then
+    warn "IP tidak terdeteksi"
+    echo "  Pastikan HP terhubung ke WiFi, bukan data seluler."
+    echo ""
+    echo "  Langkah:"
+    echo "  1. Buka Pengaturan → WiFi, hubungkan ke jaringan rumah/kantor"
+    echo "  2. Setelah terhubung, jalankan ulang: termux-connecting -y"
+elif is_cgnat "$IP"; then
+    warn "IP ${IP} terdeteksi sebagai jaringan SELULER/VPN"
+    echo "  PC dan HP harus dalam jaringan WiFi yang SAMA."
+    echo ""
+    echo "  Langkah:"
+    echo "  1. Matikan data seluler dan VPN di HP"
+    echo "  2. Buka Pengaturan → WiFi, hubungkan ke jaringan yang sama dengan PC"
+    echo "  3. Catat IP yang muncul (biasanya 192.168.x.x)"
+    echo "  4. Jalankan ulang: termux-connecting -y"
+    echo "  5. Atau cek IP manual: ip a | grep wlan"
+elif is_wifi "$IP"; then
+    echo "  Di PC/Mac, jalankan perintah berikut:"
+    echo "  npm i -g termux-connecting"
+    echo "  termux-connect-pc"
+    echo ""
+    echo "  Lalu isi data di atas saat diminta."
+    echo "  Setelah setup, cukup: ssh ${HOST_ALIAS:-termux-a8star}"
+    echo ""
+    warn "Pastikan HP dan PC terhubung ke jaringan WiFi YANG SAMA"
+    echo ""
+    echo "  Data koneksi — simpan untuk setup PC:"
+    echo "  ┌─────────────────────────────┐"
+    echo "  │ Username : $USERNAME         │"
+    echo "  │ IP       : $IP               │"
+    echo "  │ Port     : 8022              │"
+    echo "  └─────────────────────────────┘"
+else
+    warn "IP ${IP} tidak dikenal — mungkin bukan jaringan lokal"
+    echo "  Pastikan HP terhubung ke WiFi, bukan data seluler."
+    echo ""
+    echo "  Cek koneksi WiFi: ip a | grep wlan"
+    echo "  Jika IP masih ${IP}, mungkin HP menggunakan VPN/proxy."
+    echo "  Matikan VPN dan coba lagi: termux-connecting -y"
+fi
 echo ""
 
 echo "----------------------------------------"

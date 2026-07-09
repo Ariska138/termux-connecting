@@ -12,12 +12,10 @@ CLI untuk mempermudah setup Termux dan koneksi SSH ke PC/Mac.
 - Panduan koneksi SSH
 
 ### Di PC/Mac (`termux-connect-pc`)
-- Deteksi otomatis host SSH dari `~/.ssh/config`
-- Input manual username, IP, password
-- Cek konektifitas (key-based atau password via sshpass)
-- Setup SSH key untuk koneksi tanpa password
-- Setup SSH config alias
-- Setup Cloudflare Tunnel untuk koneksi online (opsional)
+- **`connection`** — Setup koneksi ke Termux (otomatis run di first run, setelahnya optional)
+- **`check`** — Cek status koneksi, kirim alert Telegram ke admin jika putus
+- **`help`** — Tampilkan bantuan
+- **`version`** — Tampilkan versi
 
 ## Installasi
 
@@ -53,10 +51,12 @@ Setup perangkat Termux: update paket, install git/node, set password, lihat IP.
 
 ### Di PC/Mac
 ```bash
-termux-connect-pc
+termux-connect-pc            # First run → auto masuk connection setup
+termux-connect-pc connection # Setup/ubah koneksi
+termux-connect-pc check      # Cek koneksi & kirim alert Telegram
+termux-connect-pc help       # Bantuan
+termux-connect-pc version    # Versi
 ```
-
-Setup koneksi dari komputer ke Termux: input IP/username/password, setup SSH key, setup tunnel Cloudflare.
 
 ## Cara Koneksi dari PC/Mac
 

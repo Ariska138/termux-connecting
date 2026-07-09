@@ -1,7 +1,7 @@
 {
   "name": "termux-connecting",
   "version": "1.0.0",
-  "description": "CLI untuk mempermudah setup Termux dan koneksi ke PC/Mac",
+  "description": "CLI setup Termux + koneksi SSH dari PC/Mac dengan Telegram alert",
   "bin": {
     "termux-connecting": "./bin/termux-connecting",
     "termux-connect-pc": "./bin/termux-connect-pc"

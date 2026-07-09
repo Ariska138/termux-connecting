@@ -237,6 +237,12 @@ cmd_connection() {
         fi
         if $copy_ok; then
             info "Public key berhasil di-copy ke HP"
+            if ssh-keygen -y -P "" -f "$SSH_KEY" >/dev/null 2>&1; then
+                : # no passphrase
+            else
+                warn "Key $SSH_KEY memiliki passphrase. Agar tidak ditanya tiap kali:"
+                echo "  ssh-add $SSH_KEY"
+            fi
         else
             warn "Gagal copy otomatis. Copy manual:"
             echo "  ssh-copy-id -i ${SSH_KEY} -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}"
@@ -361,18 +367,21 @@ cmd_check() {
     echo "Device: ${ACTIVE_DEVICE} (${SSH_USER}@${SSH_HOST}:${SSH_PORT})"
     echo ""
 
-    if run_timeout 10 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 "$ACTIVE_DEVICE" "echo connected"; then
+    if run_timeout 10 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes "$ACTIVE_DEVICE" "echo connected" 2>/dev/null; then
         info "Koneksi OK"
         echo ""
         info "Gunakan ssh $ACTIVE_DEVICE untuk koneksi"
+    elif run_timeout 10 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o PasswordAuthentication=no "$ACTIVE_DEVICE" "echo connected" 2>/dev/null; then
+        info "Koneksi OK (key-based)"
+        echo ""
+        warn "Key $SSH_KEY memiliki passphrase. Agar tidak ditanya tiap kali:"
+        echo "  ssh-add $SSH_KEY"
     else
         error "Koneksi GAGAL"
-        echo "  Penyebab umum:"
-        echo "  - HP mati/dalam keadaan sleep"
-        echo "  - Termux di-swipe (close) dari recent apps"
-        echo "  - sshd crash atau berhenti"
-        echo ""
-        echo "  Di HP: buka Termux, jalankan: sshd"
+        echo "  Penyebab:"
+        echo "  - HP mati/sleep → buka Termux, jalankan: sshd"
+        echo "  - Key bermasalah → setup ulang: termux-connect-pc connection"
+        echo "  - Password berubah → cek password di HP: passwd"
         echo ""
         telegram_alert "🚨 *Koneksi Termux PUTUS*%0ADevice: ${ACTIVE_DEVICE}%0AHost: ${SSH_USER}@${SSH_HOST}:${SSH_PORT}%0AWaktu: $(date)"
         echo ""

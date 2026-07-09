@@ -159,6 +159,24 @@ cmd_connection() {
         return
     fi
 
+    echo ""
+    echo "  ── Cek Ping ke $SSH_HOST ──"
+    echo "  Ping $SSH_HOST untuk verifikasi..."
+    if command -v ping >/dev/null; then
+        result=$(timeout 5 ping -c 2 -W 2 "$SSH_HOST" 2>&1)
+        loss=$(echo "$result" | awk '/loss/{print $6}' | tr -d '%')
+        if [ -n "$loss" ] && [ "$loss" -lt 1 ] 2>/dev/null; then
+            rtt=$(echo "$result" | awk -F'/' '/rtt/{print $5}')
+            info "HP reachable (RTT: ${rtt}ms)"
+        else
+            error "HP tidak reachable (packet loss: ${loss:-100}%)"
+            echo "  Pastikan HP dan PC di jaringan yang SAMA."
+            echo "  Cek IP dengan termux-connecting --check di HP."
+            return
+        fi
+    fi
+    echo ""
+
     # ── Cek Konektifitas ──
     title "1. Cek Konektifitas"
     echo "  Mencoba koneksi ke ${SSH_USER}@${SSH_HOST}:${SSH_PORT}..."

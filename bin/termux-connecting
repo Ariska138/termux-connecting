@@ -72,7 +72,6 @@ if $HELP; then
     exit 0
 fi
 
-# ─── Mode: Check/Status ───
 if $CHECK; then
     echo ""
     title "TERMUX CONNECTING — Status v${VERSION}"
@@ -234,6 +233,34 @@ if [ ! -f "$WELCOME_FILE" ]; then
 fi
 
 title "TERMUX CONNECTING v${VERSION} — Setup"
+
+# ─── Cek Jaringan Diawal ───
+title "Cek Jaringan"
+ip=$(get_ip)
+if [ -z "$ip" ]; then
+    error "Tidak ada koneksi WiFi. Setup dibatalkan."
+    echo "  Hubungkan HP ke WiFi, lalu ulangi: termux-connecting -y"
+    exit 1
+fi
+gateway=$(timeout 3 ip route 2>/dev/null | awk '/default via/{print $3}' | head -1)
+if [ -z "$gateway" ] && command -v getprop >/dev/null; then
+    iface=$(getprop wifi.interface 2>/dev/null); [ -z "$iface" ] && iface="wlan0"
+    gateway=$(getprop dhcp.${iface}.gateway 2>/dev/null)
+fi
+if [ -n "$gateway" ]; then
+    result=$(timeout 5 ping -c 2 -W 2 "$gateway" 2>&1)
+    loss=$(echo "$result" | awk '/loss/{print $6}' | tr -d '%')
+    if [ -n "$loss" ] && [ "$loss" -lt 1 ] 2>/dev/null; then
+        info "Jaringan stabil (0% loss) — IP: $ip"
+    else
+        error "Jaringan tidak stabil (packet loss: ${loss:-100}%)"
+        echo "  Setup dibatalkan. Perbaiki jaringan lalu ulangi."
+        exit 1
+    fi
+else
+    info "Jaringan terdeteksi — IP: $ip"
+fi
+echo ""
 
 # ─── 1. coreutils & iproute2 ───
 if ! command -v timeout >/dev/null; then

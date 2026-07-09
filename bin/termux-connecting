@@ -43,6 +43,12 @@ title "TERMUX CONNECTING — Setup"
 echo "Memeriksa dan mengkonfigurasi Termux..."
 echo "----------------------------------------"
 
+# Pastikan coreutils (timeout) tersedia
+if ! command -v timeout >/dev/null; then
+    echo "  Install coreutils untuk timeout..."
+    pkg install -y coreutils
+fi
+
 title "1. Update & Upgrade Paket"
 echo "Menjalankan pkg update && pkg upgrade..."
 if timeout 300 pkg update -y && timeout 300 pkg upgrade -y; then

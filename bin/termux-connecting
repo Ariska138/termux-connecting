@@ -107,7 +107,7 @@ done
 
 # ─── 4. Password ───
 title "3. Cek Password (passwd)"
-if [ -f "$HOME/.termux_authinfo" ] || passwd -S 2>/dev/null | grep -q "P"; then
+if [ -f "$HOME/.termux_authinfo" ] || passwd -S | grep -q "P"; then
     info "Password sudah diatur"
 else
     echo "  Belum ada password. Setting password diperlukan untuk SSH."
@@ -136,10 +136,10 @@ if [ -z "$IP" ] && command -v ifconfig >/dev/null; then
     IP=$(ifconfig | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1)
 fi
 if [ -z "$IP" ] && command -v hostname >/dev/null; then
-    IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    IP=$(hostname -I | awk '{print $1}')
 fi
 if [ -z "$IP" ] && [ -d /data/data/com.termux ]; then
-    IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}' | head -1)
+    IP=$(ip route get 1.1.1.1 | awk '{print $7}' | head -1)
 fi
 if [ -z "$IP" ]; then
     IP="(tidak terdeteksi — pastikan WiFi/data aktif)"

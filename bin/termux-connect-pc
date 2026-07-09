@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 set -e
 
-VERSION="1.1.13"
+VERSION="1.1.12"
 CONFIG_DIR="$HOME/.config/termux-connecting"
 CONFIG_FILE="$CONFIG_DIR/config"
+DEVICES_DIR="$CONFIG_DIR/devices"
+ACTIVE_DEVICE=""
 SSH_PORT=8022
 SSH_KEY="$HOME/.ssh/id_ed25519"
 
@@ -20,21 +22,46 @@ prompt() {
     echo "${val:-$default}"
 }
 
+load_active() {
+    if [ -f "$CONFIG_FILE" ]; then
+        ACTIVE_DEVICE=$(cat "$CONFIG_FILE")
+    fi
+}
+
 load_config() {
-    [ -f "$CONFIG_FILE" ] && source "$CONFIG_FILE"
+    local name="${1:-$ACTIVE_DEVICE}"
+    [ -z "$name" ] && return 1
+    local file="$DEVICES_DIR/$name"
+    [ -f "$file" ] && source "$file" || return 1
 }
 
 save_config() {
-    mkdir -p "$CONFIG_DIR"
-    cat > "$CONFIG_FILE" << EOF
-HOST_ALIAS="$HOST_ALIAS"
+    local name="${1:-$ACTIVE_DEVICE}"
+    [ -z "$name" ] && return 1
+    mkdir -p "$DEVICES_DIR"
+    cat > "$DEVICES_DIR/$name" << EOF
+HOST_ALIAS="$name"
 SSH_USER="$SSH_USER"
 SSH_HOST="$SSH_HOST"
 SSH_PORT=$SSH_PORT
 TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
 TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
 EOF
-    chmod 600 "$CONFIG_FILE"
+    chmod 600 "$DEVICES_DIR/$name"
+}
+
+set_active() {
+    local name="$1"
+    mkdir -p "$CONFIG_DIR"
+    echo "$name" > "$CONFIG_FILE"
+    ACTIVE_DEVICE="$name"
+}
+
+list_devices() {
+    mkdir -p "$DEVICES_DIR"
+    for f in "$DEVICES_DIR"/*; do
+        [ -f "$f" ] && basename "$f"
+    done
 }
 
 telegram_alert() {
@@ -49,17 +76,34 @@ telegram_alert() {
 
 # ─── COMMAND: connection ──────────────────────────────────────
 cmd_connection() {
-    load_config
-    title "TERMUX CONNECT — Connection Setup"
+    local new_name="${1:-}"
+    load_active
 
-    local first_run=false
-    if [ ! -f "$CONFIG_FILE" ]; then
-        first_run=true
-        echo "Pertama kali dijalankan. Setup koneksi ke Termux."
-        echo "------------------------------------------------"
+    # Jika ada argumen nama, setup device baru
+    if [ -n "$new_name" ]; then
+        HOST_ALIAS="$new_name"
     fi
 
-    HOST_ALIAS=$(prompt "Nama alias" "${HOST_ALIAS:-termux-a8star}")
+    title "TERMUX CONNECT — Connection Setup"
+
+    if [ -z "$new_name" ] && [ -n "$ACTIVE_DEVICE" ]; then
+        echo "  Device aktif: $ACTIVE_DEVICE"
+        echo -n "  Setup device baru? [y/N]: "
+        read -r new_dev
+        if [[ "$new_dev" =~ ^[Yy]$ ]]; then
+            new_name=$(prompt "Nama device baru" "")
+            HOST_ALIAS="$new_name"
+        else
+            # Edit device aktif
+            load_config || true
+            HOST_ALIAS="${ACTIVE_DEVICE}"
+        fi
+    fi
+
+    if [ -z "$HOST_ALIAS" ]; then
+        HOST_ALIAS=$(prompt "Nama alias" "termux-a8star")
+    fi
+
     SSH_USER=$(prompt "Username" "${SSH_USER:-u0_a237}")
     SSH_HOST=$(prompt "IP Address" "${SSH_HOST:-192.168.1.8}")
 
@@ -70,7 +114,7 @@ cmd_connection() {
     if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
         info "Koneksi berhasil (key-based)"
         connected=true
-    elif command -v sshpass; then
+    elif command -v sshpass >/dev/null; then
         local pass
         pass=$(prompt "Password SSH" "")
         if timeout 10 sshpass -p "$pass" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
@@ -89,7 +133,7 @@ cmd_connection() {
     if ! $connected; then
         error "Tidak bisa terhubung ke ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
         echo "  Pastikan sshd sudah jalan di Termux dan satu jaringan."
-        return 1
+        return
     fi
 
     # SSH key
@@ -108,7 +152,7 @@ cmd_connection() {
 
     # SSH config
     mkdir -p "$HOME/.ssh"
-    if ! grep -q "Host $HOST_ALIAS$" "$HOME/.ssh/config" 2>/dev/null; then
+    if ! grep -q "Host $HOST_ALIAS$" "$HOME/.ssh/config"; then
         cat >> "$HOME/.ssh/config" << EOF
 
 Host $HOST_ALIAS
@@ -122,69 +166,134 @@ EOF
     fi
     info "Koneksi siap: ssh $HOST_ALIAS"
 
-    # Telegram — hanya first run
-    if $first_run; then
+    # Telegram — hanya first time
+    local tel_setup=false
+    if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+        echo ""
         title "2. Telegram Alert (opsional)"
-        echo "Ingin dapat notifikasi Telegram saat koneksi bermasalah?"
-        echo -n "Setup sekarang? [y/N]: "; read -r tk
+        echo -n "Ingat notifikasi Telegram saat koneksi putus? [y/N]: "
+        read -r tk
         if [[ "$tk" =~ ^[Yy]$ ]]; then
             TELEGRAM_BOT_TOKEN=$(prompt "Bot Token (dari @BotFather)" "")
-            TELEGRAM_CHAT_ID=$(prompt "Chat ID (atau username @username)" "")
+            TELEGRAM_CHAT_ID=$(prompt "Chat ID (atau @username)" "")
             if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-                telegram_alert "✅ *termux-connect-pc* — Admin tersimpan"
-                info "Telegram alert aktif"
+                tel_setup=true
             else
-                warn "Lewati Telegram. Bisa diatur nanti dengan edit: $CONFIG_FILE"
+                warn "Lewati Telegram. Bisa diatur nanti edit file device."
             fi
-        else
-            info "Telegram bisa diaktifkan nanti: $CONFIG_FILE"
         fi
     fi
 
-    save_config
+    # Simpan & set active
+    save_config "$HOST_ALIAS"
+    set_active "$HOST_ALIAS"
+
+    if $tel_setup; then
+        telegram_alert "✅ *termux-connect-pc* — Admin tersimpan"
+        info "Telegram alert aktif"
+    fi
+
     echo ""
     info "Setup selesai! Jalankan: termux-connect-pc check"
 }
 
+# ─── COMMAND: list ────────────────────────────────────────────
+cmd_list() {
+    load_active
+    title "TERMUX CONNECT — Devices"
+    local devices=()
+    while IFS= read -r d; do
+        devices+=("$d")
+    done < <(list_devices)
+
+    if [ ${#devices[@]} -eq 0 ]; then
+        warn "Belum ada device. Tambah: termux-connect-pc connection"
+        return
+    fi
+
+    for d in "${devices[@]}"; do
+        if [ "$d" = "$ACTIVE_DEVICE" ]; then
+            echo -e "  ${GREEN}→ $d (aktif)${NC}"
+            # tampilkan detail
+            SSH_USER=""; SSH_HOST=""
+            source "$DEVICES_DIR/$d" || true
+            [ -n "$SSH_HOST" ] && echo "     $SSH_USER@$SSH_HOST:$SSH_PORT"
+            [ -n "$TELEGRAM_BOT_TOKEN" ] && echo "     Telegram: aktif"
+        else
+            echo "    $d"
+        fi
+    done
+    echo ""
+    echo "  Gunakan: termux-connect-pc switch <nama>"
+}
+
+# ─── COMMAND: switch ──────────────────────────────────────────
+cmd_switch() {
+    local name="$1"
+    if [ -z "$name" ]; then
+        error "Nama device diperlukan. Lihat: termux-connect-pc list"
+        return
+    fi
+    if [ ! -f "$DEVICES_DIR/$name" ]; then
+        error "Device '$name' tidak ditemukan"
+        return
+    fi
+    set_active "$name"
+    info "Beralih ke device: $name"
+}
+
 # ─── COMMAND: check ───────────────────────────────────────────
 cmd_check() {
-    load_config
-    if [ ! -f "$CONFIG_FILE" ]; then
-        warn "Belum ada konfigurasi. Jalankan dulu: termux-connect-pc connection"
-        return 1
+    load_active
+    if [ -z "$ACTIVE_DEVICE" ] || ! load_config; then
+        warn "Belum ada device. Tambah: termux-connect-pc connection"
+        return
     fi
 
     title "TERMUX CONNECT — Check"
-    echo "Memeriksa ${HOST_ALIAS} (${SSH_USER}@${SSH_HOST}:${SSH_PORT})..."
+    echo "Device: ${ACTIVE_DEVICE} (${SSH_USER}@${SSH_HOST}:${SSH_PORT})"
     echo ""
 
-    local ok=false
-    if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes "$HOST_ALIAS" "echo connected"; then
+    if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes "$ACTIVE_DEVICE" "echo connected"; then
         info "Koneksi OK"
-        ok=true
+        echo ""
+        info "Gunakan ssh $ACTIVE_DEVICE untuk koneksi"
     else
         error "Koneksi GAGAL"
-        telegram_alert "🚨 *Koneksi Termux PUTUS*%0AHost: ${HOST_ALIAS}%0AUser: ${SSH_USER}%0AIP: ${SSH_HOST}:${SSH_PORT}%0AWaktu: $(date)"
+        telegram_alert "🚨 *Koneksi Termux PUTUS*%0ADevice: ${ACTIVE_DEVICE}%0AHost: ${SSH_USER}@${SSH_HOST}:${SSH_PORT}%0AWaktu: $(date)"
         echo ""
         warn "Notifikasi sudah dikirim ke Telegram admin"
         echo ""
-        echo -n "Coba lagi? [y/N]: "; read -r retry
+        echo -n "Coba lagi? [y/N]: "
+        read -r retry
         if [[ "$retry" =~ ^[Yy]$ ]]; then
             cmd_check
             return
         fi
     fi
+}
 
-    if $ok; then
-        echo ""
-        info "Gunakan ssh $HOST_ALIAS untuk koneksi"
-        echo ""
-        echo -n "Cek lagi nanti secara berkala? (setup cron/dimonitor) [y/N]: "; read -r monitor
-        if [[ "$monitor" =~ ^[Yy]$ ]]; then
-            echo ""
-            echo "  Tambahkan ke crontab (crontab -e):"
-            echo "  */5 * * * * ${0} check"
-        fi
+# ─── COMMAND: remove ──────────────────────────────────────────
+cmd_remove() {
+    local name="$1"
+    if [ -z "$name" ]; then
+        error "Nama device diperlukan"
+        return
+    fi
+    if [ ! -f "$DEVICES_DIR/$name" ]; then
+        error "Device '$name' tidak ditemukan"
+        return
+    fi
+    rm "$DEVICES_DIR/$name"
+    info "Device '$name' dihapus"
+    # Hapus dari SSH config
+    if [ -f "$HOME/.ssh/config" ]; then
+        sed -i '' "/^Host $name\$/,/^$/d" "$HOME/.ssh/config" || true
+    fi
+    if [ "$ACTIVE_DEVICE" = "$name" ]; then
+        rm -f "$CONFIG_FILE"
+        ACTIVE_DEVICE=""
+        warn "Device aktif dihapus. Set active: termux-connect-pc switch <nama>"
     fi
 }
 
@@ -195,11 +304,15 @@ cmd_help() {
     echo "CLI koneksi Termux dari PC/Mac"
     echo ""
     echo "Penggunaan:"
-    echo "  termux-connect-pc connection    Setup koneksi ke Termux (hanya sekali)"
-    echo "  termux-connect-pc check         Cek status koneksi & kirim alert"
-    echo "  termux-connect-pc help          Tampilkan bantuan ini"
-    echo "  termux-connect-pc version       Tampilkan versi"
+    echo "  termux-connect-pc connection [nama]  Setup device baru"
+    echo "  termux-connect-pc list               Daftar semua device"
+    echo "  termux-connect-pc switch <nama>      Pilih device aktif"
+    echo "  termux-connect-pc check              Cek koneksi device aktif"
+    echo "  termux-connect-pc remove <nama>      Hapus device"
+    echo "  termux-connect-pc help               Bantuan ini"
+    echo "  termux-connect-pc version            Versi"
     echo ""
+    echo "Multi-device: kelola beberapa HP Termux dari satu PC."
     echo "Telegram alert otomatis ke admin saat koneksi putus."
     echo ""
 }
@@ -212,13 +325,17 @@ cmd_version() {
 # ─── MAIN ─────────────────────────────────────────────────────
 main() {
     case "${1:-}" in
-        connection) cmd_connection ;;
+        connection) cmd_connection "${2:-}" ;;
+        list|ls)    cmd_list ;;
+        switch|use) cmd_switch "${2:-}" ;;
         check)      cmd_check ;;
+        remove|rm)  cmd_remove "${2:-}" ;;
         help|--help|-h) cmd_help ;;
         version|--version|-v) cmd_version ;;
         *)
-            if [ ! -f "$CONFIG_FILE" ]; then
-                echo "Pertama kali dijalankan! Setup koneksi dulu."
+            load_active
+            if [ -z "$ACTIVE_DEVICE" ]; then
+                echo "Belum ada device. Setup koneksi pertama."
                 echo ""
                 cmd_connection
             else

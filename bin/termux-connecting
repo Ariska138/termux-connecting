@@ -138,8 +138,62 @@ else
     fi
 fi
 
-# ─── 6. Informasi Koneksi ───
-title "5. Informasi Koneksi"
+# ─── 6. Termux:API & Permission ───
+title "5. Cek Termux:API & Permission"
+HAS_API=false
+HAS_STORAGE=false
+HAS_BOOT=false
+
+if command -v termux-wifi-connectioninfo >/dev/null 2>&1; then
+    HAS_API=true
+    info "Termux:API package terinstall — WiFi SSID bisa dideteksi"
+else
+    echo "  Termux:API — menampilkan nama WiFi yang digunakan"
+    echo "  Install:"
+    echo "  pkg install termux-api"
+    echo "  Install aplikasi Termux:API dari F-Droid, lalu jalankan ulang"
+    echo ""
+fi
+
+if [ -d "$HOME/storage" ]; then
+    HAS_STORAGE=true
+    info "Storage permission sudah diatur"
+else
+    echo "  Storage — akses ke penyimpanan HP"
+    echo "  Setup: termux-setup-storage"
+    echo "  Lalu izinkan permission di pop-up Android"
+    echo ""
+fi
+
+if [ -f "$HOME/.termux/boot/boot-sshd" ] || [ -f "$HOME/.termux/boot/start-sshd" ]; then
+    HAS_BOOT=true
+    info "Termux:Boot aktif — sshd auto-start saat HP nyala"
+else
+    echo "  Termux:Boot — auto-start sshd setiap HP dinyalakan"
+    echo "  Setup otomatis: mkdir -p ~/.termux/boot"
+    echo "  && echo 'sshd' > ~/.termux/boot/boot-sshd"
+    echo "  && chmod +x ~/.termux/boot/boot-sshd"
+    echo ""
+    echo "  Install aplikasi Termux:Boot dari F-Droid"
+    echo "  Reboot HP, sshd akan jalan otomatis"
+    echo ""
+fi
+
+if ! $HAS_API || ! $HAS_STORAGE || ! $HAS_BOOT; then
+    echo "  ┌────────────────────────────────────────────┐"
+    echo "  │  Instalasi via F-Droid:                     │"
+    echo "  │  https://f-droid.org/packages/com.termux/  │"
+    if ! $HAS_API; then
+        echo "  │  Termux:API → com.termux.api              │"
+    fi
+    if ! $HAS_BOOT; then
+        echo "  │  Termux:Boot → com.termux.boot            │"
+    fi
+    echo "  └────────────────────────────────────────────┘"
+fi
+
+# ─── 7. Informasi Koneksi ───
+title "6. Informasi Koneksi"
 USERNAME=$(whoami)
 
 IP=""

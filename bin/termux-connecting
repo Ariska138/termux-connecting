@@ -104,8 +104,21 @@ fi
 
 title "4. Informasi Koneksi"
 USERNAME=$(whoami)
-IP=$(ip -o -4 addr show | awk '{print $4}' | cut -d/ -f1 | grep -v 127.0.0.1 | head -n1)
 
+# Deteksi IP — coba beberapa metode
+IP=""
+if command -v ip; then
+    IP=$(ip -4 addr show | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1 | head -1)
+fi
+if [ -z "$IP" ] && command -v ifconfig; then
+    IP=$(ifconfig | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1)
+fi
+if [ -z "$IP" ] && command -v hostname; then
+    IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+fi
+if [ -z "$IP" ] && [ -d /data/data/com.termux ]; then
+    IP=$(ip route get 1.1.1.1 2>/dev/null | awk '{print $7}' | head -1)
+fi
 if [ -z "$IP" ]; then
     IP="(tidak terdeteksi — pastikan WiFi/data aktif)"
 fi

@@ -52,6 +52,21 @@ Update `version` di `package.json` setiap kali publish ke npm.
 
 ## Aturan
 
+### Instalasi
+
+| Metode | Platform | Command |
+|--------|----------|---------|
+| **npm global** | Termux & PC/Mac | `npm i -g termux-connecting` |
+| **curl installer** | Termux (tanpa Node.js) | `curl -fsSL https://raw.githubusercontent.com/Ariska138/termux-connecting/main/install.sh \| bash` |
+| **Manual** | Semua | `git clone https://github.com/Ariska138/termux-connecting.git && cd termux-connecting && ln -sf "\$PWD/bin/termux-connect-pc" /usr/local/bin/termux-connect-pc` |
+
+### Publish
+
+```bash
+npm publish --otp=CODE
+```
+
+### Lainnya
 - Jangan commit token/credential ke git
 - Setiap perubahan harus update docs terkait
 - Ikuti struktur subcommand yang sudah ada

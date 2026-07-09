@@ -164,7 +164,7 @@ cmd_connection() {
     local connected=false
 
     # Key-based
-    if run_timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
+    if run_timeout 10 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
         info "Koneksi berhasil (key-based)"
         connected=true
     # Password via sshpass
@@ -184,7 +184,7 @@ cmd_connection() {
         echo "  ssh -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}"
         echo ""
         echo -n "  ➤  Setelah berhasil, tekan enter untuk lanjut..."; read -r
-        if run_timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
+        if run_timeout 10 ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
             connected=true
         fi
     fi
@@ -222,11 +222,21 @@ cmd_connection() {
     if [ -f "$SSH_KEY" ]; then
         echo ""
         echo "  Meng-copy public key ke HP..."
-        if run_timeout 15 ssh-copy-id -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}"; then
+        local copy_ok=false
+        if command -v sshpass >/dev/null && [ -n "$pass" ]; then
+            if run_timeout 15 sshpass -p "$pass" ssh-copy-id -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}"; then
+                copy_ok=true
+            fi
+        else
+            if run_timeout 15 ssh-copy-id -i "$SSH_KEY" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=10 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}"; then
+                copy_ok=true
+            fi
+        fi
+        if $copy_ok; then
             info "Public key berhasil di-copy ke HP"
         else
             warn "Gagal copy otomatis. Copy manual:"
-            echo "  ssh-copy-id -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}"
+            echo "  ssh-copy-id -i ${SSH_KEY} -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}"
         fi
     fi
 

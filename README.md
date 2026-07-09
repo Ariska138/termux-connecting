@@ -1,80 +1,117 @@
 # Termux Connecting
 
-CLI untuk mempermudah setup Termux dan koneksi SSH ke PC/Mac.
+CLI untuk setup Termux dan koneksi SSH dari PC/Mac — plus Telegram alert jika koneksi putus.
 
-## Fitur
+## Tutorial Lengkap
 
-### Di Termux (`termux-connecting`)
-- Update & upgrade paket (dengan opsi ganti repo jika gagal)
-- Cek & install Git dan Node.js
-- Set password (passwd) untuk SSH
-- Tampilkan username & IP untuk koneksi
-- Panduan koneksi SSH
+### 1. Install di Termux
 
-### Di PC/Mac (`termux-connect-pc`)
-- **`connection`** — Setup koneksi ke Termux (otomatis run di first run, setelahnya optional)
-- **`check`** — Cek status koneksi, kirim alert Telegram ke admin jika putus
-- **`help`** — Tampilkan bantuan
-- **`version`** — Tampilkan versi
-
-## Installasi
-
-### Via npm
-
-```bash
-npm i -g termux-connecting
-```
-
-### Via curl
+Jalankan di HP (Termux):
 
 ```bash
 curl -fsSL https://github.com/Ariska138/termux-connecting/install.sh | bash
 ```
 
-### Manual
+Atau via npm:
 
 ```bash
-git clone https://github.com/Ariska138/termux-connecting.git
-cd termux-connecting
-chmod +x bin/termux-connecting
-cp bin/termux-connecting $PREFIX/bin/
+npm i -g termux-connecting
 ```
 
-## Usage
+### 2. Setup Perangkat Termux
 
-### Di Termux
 ```bash
 termux-connecting
 ```
 
-Setup perangkat Termux: update paket, install git/node, set password, lihat IP.
+Script akan melakukan:
+1. `pkg update && pkg upgrade` — jika repo error, tawarkan ganti ke repo stable via `termux-change-repo`
+2. Cek Git & Node.js — tawarkan install jika belum ada
+3. Cek password SSH — jika belum, minta buat password baru via `passwd`
+4. Tampilkan **Username** dan **IP Address** perangkat
 
-### Di PC/Mac
+Simpan info username dan IP yang muncul. Ini yang akan dipakai dari PC.
+
+> **Sebelum lanjut**: pastikan SSH server sudah jalan di Termux:
+> ```bash
+> sshd
+> ```
+> Cek IP kapan saja: `ip a | grep inet`
+
+### 3. Install & Koneksi dari PC/Mac
+
+Di komputer, install:
+
 ```bash
-termux-connect-pc            # First run → auto masuk connection setup
-termux-connect-pc connection # Setup/ubah koneksi
-termux-connect-pc check      # Cek koneksi & kirim alert Telegram
-termux-connect-pc help       # Bantuan
-termux-connect-pc version    # Versi
+npm i -g termux-connecting
 ```
 
-## Cara Koneksi dari PC/Mac
-
-Pastikan HP dan PC terhubung ke jaringan WiFi yang sama, lalu:
+Lalu jalankan:
 
 ```bash
-ssh -p 8022 username@ip-android
+termux-connect-pc
 ```
 
-Atau setelah setup SSH config:
+Karena pertama kali, akan masuk ke menu **connection**:
+
+```
+Nama alias [termux-a8star]:
+Username [u0_a237]:
+IP Address [192.168.1.8]:
+```
+
+Isi dengan username dan IP yang ditampilkan di langkah 2.
+
+Script akan:
+- Cek koneksi (key-based dulu, fallback ke password)
+- Tawarkan buat SSH key agar koneksi tanpa password
+- Buat SSH config alias
+- **Hanya first run**: tawarkan setup **Telegram Alert**
+
+#### Telegram Alert (opsional, first run saja)
+
+```
+Ingin dapat notifikasi Telegram saat koneksi bermasalah? [y/N]: y
+Bot Token (dari @BotFather):
+Chat ID (atau username @username):
+```
+
+Cara dapat token:
+1. Buka Telegram, cari **@BotFather**
+2. Kirim `/newbot`, ikuti petunjuk
+3. Dapatkan token (format: `123456:ABC-DEF1234`)
+
+Chat ID bisa diisi username Anda (misal `@ariska138`).
+
+### 4. Cek Koneksi
+
+```bash
+termux-connect-pc check
+```
+
+Jika koneksi putus, script akan:
+1. Kirim notifikasi ke Telegram admin
+2. Tawarkan retry
+
+## Subcommand Reference
+
+```bash
+termux-connect-pc connection    # Setup/ubah koneksi
+termux-connect-pc check         # Cek koneksi & kirim alert
+termux-connect-pc help          # Bantuan
+termux-connect-pc version       # Versi
+```
+
+## Koneksi Manual via SSH
+
+Setelah setup, cukup:
 ```bash
 ssh termux-a8star
 ```
 
-### Via Cloudflare Tunnel (dari luar jaringan)
-
+Atau manual:
 ```bash
-ssh -o ProxyCommand='cloudflared access ssh --hostname ssh.domain.com' termux-a8star
+ssh -p 8022 u0_a237@192.168.1.8
 ```
 
 ## Lisensi

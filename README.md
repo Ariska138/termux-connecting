@@ -15,7 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/Ariska138/termux-connecting/main/in
 Atau via npm (wajib install Node.js dulu):
 
 ```bash
-pkg install -y nodejs
+pkg install -y nodejs-lts
 npm i -g termux-connecting
 ```
 

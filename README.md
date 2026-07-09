@@ -114,6 +114,11 @@ Atau manual:
 ssh -p 8022 u0_a237@192.168.1.8
 ```
 
+## Dokumentasi Detail
+
+- [Architecture](docs/architecture.md) — System design, flow, timeout policy
+- [Troubleshooting](docs/troubleshooting.md) — Common issues & solutions
+
 ## Lisensi
 
 MIT

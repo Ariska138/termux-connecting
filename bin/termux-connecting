@@ -124,8 +124,22 @@ else
     fi
 fi
 
-# ─── 5. Informasi Koneksi ───
-title "4. Informasi Koneksi"
+# ─── 5. SSH Server ───
+title "4. Cek SSH Server (sshd)"
+if pgrep -x sshd >/dev/null; then
+    info "sshd sudah berjalan"
+else
+    echo "  sshd belum jalan. Menjalankan..."
+    if sshd; then
+        info "sshd berhasil dijalankan"
+    else
+        error "Gagal menjalankan sshd"
+        echo "  Coba manual: sshd"
+    fi
+fi
+
+# ─── 6. Informasi Koneksi ───
+title "5. Informasi Koneksi"
 USERNAME=$(whoami)
 
 IP=""
@@ -157,9 +171,6 @@ echo "  Lalu isi data di atas saat diminta."
 echo "  Setelah setup, cukup: ssh ${HOST_ALIAS:-termux-a8star}"
 echo ""
 warn "Pastikan HP dan PC terhubung ke jaringan WiFi YANG SAMA"
-echo ""
-echo "  Jika SSH server belum jalan:"
-echo "  sshd"
 echo ""
 echo "  Data koneksi — simpan untuk setup PC:"
 echo "  ┌─────────────────────────────┐"

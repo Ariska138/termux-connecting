@@ -17,9 +17,24 @@ title() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}\n"; }
 
 prompt() {
     local val default="$2"
-    echo -n "$1${default:+ [$default]}: "
+    echo -n "$1${default:+ [$default]}: " >&2
     read -r val
     echo "${val:-$default}"
+}
+
+has_timeout() {
+    command -v timeout >/dev/null 2>&1 || command -v gtimeout >/dev/null 2>&1
+}
+
+run_timeout() {
+    local sec="$1"; shift
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "$sec" "$@"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        gtimeout "$sec" "$@"
+    else
+        "$@"
+    fi
 }
 
 load_active() {
@@ -149,7 +164,7 @@ cmd_connection() {
     local connected=false
 
     # Key-based
-    if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
+    if run_timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
         info "Koneksi berhasil (key-based)"
         connected=true
     # Password via sshpass
@@ -157,7 +172,7 @@ cmd_connection() {
         echo "  SSH key tidak dikenali. Coba dengan password..."
         local pass
         pass=$(prompt "  ➤  Password SSH" "")
-        if timeout 10 sshpass -p "$pass" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
+        if run_timeout 10 sshpass -p "$pass" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
             info "Koneksi berhasil (password)"
             connected=true
         fi
@@ -169,7 +184,7 @@ cmd_connection() {
         echo "  ssh -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}"
         echo ""
         echo -n "  ➤  Setelah berhasil, tekan enter untuk lanjut..."; read -r
-        if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
+        if run_timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
             connected=true
         fi
     fi
@@ -207,7 +222,7 @@ cmd_connection() {
     if [ -f "$SSH_KEY" ]; then
         echo ""
         echo "  Meng-copy public key ke HP..."
-        if timeout 15 ssh-copy-id -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}"; then
+        if run_timeout 15 ssh-copy-id -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}"; then
             info "Public key berhasil di-copy ke HP"
         else
             warn "Gagal copy otomatis. Copy manual:"
@@ -333,7 +348,7 @@ cmd_check() {
     echo "Device: ${ACTIVE_DEVICE} (${SSH_USER}@${SSH_HOST}:${SSH_PORT})"
     echo ""
 
-    if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes "$ACTIVE_DEVICE" "echo connected"; then
+    if run_timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes "$ACTIVE_DEVICE" "echo connected"; then
         info "Koneksi OK"
         echo ""
         info "Gunakan ssh $ACTIVE_DEVICE untuk koneksi"

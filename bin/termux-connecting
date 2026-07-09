@@ -163,6 +163,12 @@ WIFI_SSID=""
 if command -v termux-wifi-connectioninfo >/dev/null; then
     WIFI_SSID=$(termux-wifi-connectioninfo 2>/dev/null | grep -o '"ssid":"[^"]*"' | cut -d'"' -f4)
 fi
+if [ -z "$WIFI_SSID" ] && command -v iw >/dev/null; then
+    WIFI_SSID=$(iw dev wlan0 link 2>/dev/null | grep -i ssid | sed 's/.*SSID: //')
+fi
+if [ -z "$WIFI_SSID" ] && [ -r /proc/net/wireless ]; then
+    WIFI_SSID=$(awk 'NR==3{print $1}' /proc/net/wireless 2>/dev/null | tr -d ':')
+fi
 
 is_cgnat() {
     [[ "$1" =~ ^10\. ]] || [[ "$1" =~ ^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\. ]]

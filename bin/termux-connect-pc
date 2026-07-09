@@ -256,8 +256,11 @@ cmd_connection() {
     echo "  Nanti cukup: ssh ${HOST_ALIAS}"
     echo ""
     mkdir -p "$HOME/.ssh"
-    if ! grep -q "Host $HOST_ALIAS$" "$HOME/.ssh/config"; then
-        cat >> "$HOME/.ssh/config" << EOF
+    # Hapus blok config lama jika ada, lalu tulis ulang
+    if [ -f "$HOME/.ssh/config" ]; then
+        sed -i '' "/^Host $HOST_ALIAS$/,/^$/d" "$HOME/.ssh/config" 2>/dev/null || true
+    fi
+    cat >> "$HOME/.ssh/config" << EOF
 
 Host $HOST_ALIAS
     HostName $SSH_HOST
@@ -267,11 +270,8 @@ Host $HOST_ALIAS
     StrictHostKeyChecking no
     UserKnownHostsFile /dev/null
 EOF
-        chmod 600 "$HOME/.ssh/config"
-        info "SSH config siap: ssh $HOST_ALIAS"
-    else
-        info "Host '$HOST_ALIAS' sudah ada di SSH config"
-    fi
+    chmod 600 "$HOME/.ssh/config"
+    info "SSH config siap: ssh $HOST_ALIAS"
 
     # ── Telegram ──
     title "4. Telegram Alert (opsional)"

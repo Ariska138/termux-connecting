@@ -99,9 +99,10 @@ cmd_connection() {
 
     if [ -n "$new_name" ]; then
         HOST_ALIAS="$new_name"
+        load_config "$new_name" || true
     fi
 
-    title "TERMUX CONNECT — Connection Setup"
+    title "TERMUX CONNECTING v${VERSION} — Connection Setup"
     echo "Saya akan bantu kamu menghubungkan PC ini ke Termux di HP."
     echo ""
 
@@ -163,7 +164,7 @@ cmd_connection() {
     echo "  ── Cek Ping ke $SSH_HOST ──"
     echo "  Ping $SSH_HOST untuk verifikasi..."
     if command -v ping >/dev/null; then
-        result=$(timeout 5 ping -c 2 -W 2 "$SSH_HOST" 2>&1)
+        result=$(run_timeout 5 ping -c 2 -W 2 "$SSH_HOST" 2>&1)
         loss=$(echo "$result" | awk '/loss/{print $6}' | tr -d '%')
         if [ -n "$loss" ] && [ "$loss" -lt 1 ] 2>/dev/null; then
             rtt=$(echo "$result" | awk -F'/' '/rtt/{print $5}')
@@ -333,7 +334,7 @@ EOF
 # ─── COMMAND: list ────────────────────────────────────────────
 cmd_list() {
     load_active
-    title "TERMUX CONNECT — Devices"
+    title "TERMUX CONNECTING v${VERSION} — Devices"
     local devices=()
     while IFS= read -r d; do
         devices+=("$d")
@@ -383,7 +384,7 @@ cmd_check() {
         return
     fi
 
-    title "TERMUX CONNECT — Check"
+    title "TERMUX CONNECTING v${VERSION} — Check"
     echo "Device: ${ACTIVE_DEVICE} (${SSH_USER}@${SSH_HOST}:${SSH_PORT})"
     echo ""
 

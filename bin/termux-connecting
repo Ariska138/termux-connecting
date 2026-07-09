@@ -9,26 +9,38 @@ warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
 error() { echo -e "${RED}[✗]${NC} $1"; }
 title() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}\n"; }
 
+# ─── Helper: timeout lintas platform ───
+run_timeout() {
+    local sec="$1"; shift
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "$sec" "$@"
+    elif command -v gtimeout >/dev/null 2>&1; then
+        gtimeout "$sec" "$@"
+    else
+        "$@"
+    fi
+}
+
 # ─── Helper: dapatkan IP dengan berbagai metode ───
 get_ip() {
     local ip=""
     if command -v ip >/dev/null; then
         for iface in wlan0 wlan1 eth0 eth1 wlp2s0 wlp3s0 en0 en1; do
-            ip=$(timeout 2 ip -4 addr show $iface 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1)
+            ip=$(run_timeout 2 ip -4 addr show $iface 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1)
             [ -n "$ip" ] && break
         done
         if [ -z "$ip" ]; then
-            ip=$(timeout 2 ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
+            ip=$(run_timeout 2 ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
         fi
         if [ -z "$ip" ]; then
-            ip=$(timeout 2 ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1 | head -1)
+            ip=$(run_timeout 2 ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1 | head -1)
         fi
     fi
     if [ -z "$ip" ] && command -v ifconfig >/dev/null; then
-        ip=$(timeout 2 ifconfig 2>/dev/null | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1)
+        ip=$(run_timeout 2 ifconfig 2>/dev/null | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1)
     fi
     if [ -z "$ip" ] && command -v getprop >/dev/null; then
-        local iface=$(getprop wifi.interface)
+        local iface=$(getprop wifi.interface 2>/dev/null)
         [ -n "$iface" ] && ip=$(getprop dhcp.${iface}.ipaddress 2>/dev/null)
         [ -z "$ip" ] && ip=$(getprop dhcp.wlan0.ipaddress 2>/dev/null)
         [ -z "$ip" ] && ip=$(getprop dhcp.wlan1.ipaddress 2>/dev/null)
@@ -90,7 +102,7 @@ if $CHECK; then
     echo ""
     echo "  🌐 Network    :"
     for iface in wlan0 wlan1 eth0 eth1 wlp2s0 wlp3s0 en0 en1; do
-        addr=$(timeout 2 ip -4 addr show $iface 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1)
+        addr=$(run_timeout 2 ip -4 addr show $iface 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1)
         if [ -n "$addr" ]; then
             echo "     $iface : $addr"
         fi
@@ -242,13 +254,13 @@ if [ -z "$ip" ]; then
     echo "  Hubungkan HP ke WiFi, lalu ulangi: termux-connecting -y"
     exit 1
 fi
-gateway=$(timeout 3 ip route 2>/dev/null | awk '/default via/{print $3}' | head -1)
+gateway=$(run_timeout 3 ip route 2>/dev/null | awk '/default via/{print $3}' | head -1)
 if [ -z "$gateway" ] && command -v getprop >/dev/null; then
     iface=$(getprop wifi.interface 2>/dev/null); [ -z "$iface" ] && iface="wlan0"
     gateway=$(getprop dhcp.${iface}.gateway 2>/dev/null)
 fi
 if [ -n "$gateway" ]; then
-    result=$(timeout 5 ping -c 2 -W 2 "$gateway" 2>&1)
+    result=$(run_timeout 5 ping -c 2 -W 2 "$gateway" 2>&1)
     loss=$(echo "$result" | awk '/loss/{print $6}' | tr -d '%')
     if [ -n "$loss" ] && [ "$loss" -lt 1 ] 2>/dev/null; then
         info "Jaringan stabil (0% loss) — IP: $ip"
@@ -393,7 +405,7 @@ title "6. Cek Stabilitas Jaringan"
 STABLE=false
 if [ -n "$IP" ]; then
     echo "  Ping gateway untuk verifikasi koneksi..."
-    gateway=$(timeout 3 ip route 2>/dev/null | awk '/default via/{print $3}' | head -1)
+gateway=$(run_timeout 3 ip route 2>/dev/null | awk '/default via/{print $3}' | head -1)
     if [ -z "$gateway" ] && command -v getprop >/dev/null; then
         iface=$(getprop wifi.interface 2>/dev/null)
         [ -z "$iface" ] && iface="wlan0"
@@ -401,7 +413,7 @@ if [ -n "$IP" ]; then
     fi
     if [ -n "$gateway" ]; then
         echo "  Gateway: $gateway"
-        result=$(timeout 5 ping -c 2 -W 2 "$gateway" 2>&1)
+    result=$(run_timeout 5 ping -c 2 -W 2 "$gateway" 2>&1)
         loss=$(echo "$result" | awk '/loss/{print $6}' | tr -d '%')
         if [ -n "$loss" ] && [ "$loss" -lt 1 ] 2>/dev/null; then
             STABLE=true

@@ -25,6 +25,7 @@ FULL="${VER}.${PATCH}"
 
 sed -i '' 's/"version": "'"$CUR"'"/"version": "'"$FULL"'"/' "$ROOT/package.json"
 sed -i '' 's/^VERSION="'"$CUR"'"/VERSION="'"$FULL"'"/' "$ROOT/bin/termux-connect-pc"
+sed -i '' 's/^VERSION="'"$CUR"'"/VERSION="'"$FULL"'"/' "$ROOT/bin/termux-connecting"
 
 cd "$ROOT"
 git add -A

@@ -1,6 +1,8 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -e
 
+VERSION="1.1.38"
+
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; CYAN='\033[0;36m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[✓]${NC} $1"; }
 warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
@@ -17,7 +19,7 @@ done
 # ─── Mode: Check/Status ───
 if $CHECK; then
     echo ""
-    title "TERMUX CONNECTING — Status"
+    title "TERMUX CONNECTING — Status v${VERSION}"
     echo "  ⏱  Uptime HP  : $(uptime -p 2>/dev/null || echo 'N/A')"
     echo ""
     echo "  🔑 SSH Server :"
@@ -111,7 +113,7 @@ if [ ! -f "$WELCOME_FILE" ]; then
     touch "$WELCOME_FILE"
 fi
 
-title "TERMUX CONNECTING — Setup"
+title "TERMUX CONNECTING v${VERSION} — Setup"
 
 # ─── 1. coreutils ───
 if ! command -v timeout >/dev/null; then

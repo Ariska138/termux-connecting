@@ -11,10 +11,14 @@ title() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}\n"; }
 
 AUTO=false
 CHECK=false
+DEBUG=false
 for arg in "$@"; do
     [ "$arg" = "-y" ] && AUTO=true
     [ "$arg" = "--check" ] || [ "$arg" = "--status" ] && CHECK=true
+    [ "$arg" = "--debug" ] && DEBUG=true
 done
+
+$DEBUG && set -x
 
 # ─── Mode: Check/Status ───
 if $CHECK; then
@@ -205,9 +209,9 @@ if command -v termux-wake-lock >/dev/null; then
     termux-wake-lock 2>/dev/null && info "Wake lock aktif — koneksi tetap terjaga saat layar mati"
 fi
 
-# notification — agar Android tidak kill Termux
+# notification — agar Android tidak kill Termux (timeout 3 detik)
 if command -v termux-notification >/dev/null; then
-    termux-notification -t "Termux Connecting" -c "SSH server berjalan — ${USERNAME}@${IP}:8022" --id sshd-keepalive --ongoing 2>/dev/null
+    timeout 3 termux-notification -t "Termux Connecting" -c "SSH server berjalan — port 8022" --id sshd-keepalive --ongoing 2>/dev/null || true
 fi
 
 # battery optimization — buka setelan langsung

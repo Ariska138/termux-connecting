@@ -9,6 +9,36 @@ warn()  { echo -e "${YELLOW}[!]${NC} $1"; }
 error() { echo -e "${RED}[✗]${NC} $1"; }
 title() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}\n"; }
 
+# ─── Helper: dapatkan IP dengan berbagai metode ───
+get_ip() {
+    local ip=""
+    if command -v ip >/dev/null; then
+        for iface in wlan0 wlan1 eth0 eth1 wlp2s0 wlp3s0 en0 en1; do
+            ip=$(timeout 2 ip -4 addr show $iface 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1)
+            [ -n "$ip" ] && break
+        done
+        if [ -z "$ip" ]; then
+            ip=$(timeout 2 ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
+        fi
+        if [ -z "$ip" ]; then
+            ip=$(timeout 2 ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1 | head -1)
+        fi
+    fi
+    if [ -z "$ip" ] && command -v ifconfig >/dev/null; then
+        ip=$(timeout 2 ifconfig 2>/dev/null | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1)
+    fi
+    if [ -z "$ip" ] && command -v getprop >/dev/null; then
+        local iface=$(getprop wifi.interface)
+        [ -n "$iface" ] && ip=$(getprop dhcp.${iface}.ipaddress 2>/dev/null)
+        [ -z "$ip" ] && ip=$(getprop dhcp.wlan0.ipaddress 2>/dev/null)
+        [ -z "$ip" ] && ip=$(getprop dhcp.wlan1.ipaddress 2>/dev/null)
+    fi
+    if [ -z "$ip" ] && [ -f /proc/net/fib_trie ]; then
+        ip=$(awk '/32 host/ { print parent } /LOCAL/ { print parent } { parent = $2 }' /proc/net/fib_trie 2>/dev/null | grep -v "LOOPBACK" | head -1)
+    fi
+    echo "$ip"
+}
+
 AUTO=false
 CHECK=false
 MONITOR=false
@@ -66,7 +96,8 @@ if $CHECK; then
             echo "     $iface : $addr"
         fi
     done
-    if [ -z "$(timeout 2 ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1)" ]; then
+    local any_ip=$(get_ip)
+    if [ -z "$any_ip" ]; then
         echo "     ❌  Tidak ada IP (nonaktif/data)"
     fi
     echo ""
@@ -116,19 +147,7 @@ monitor_loop() {
         local ip=""
         local sshd_pid=""
 
-        for iface in wlan0 wlan1 eth0 eth1 wlp2s0 wlp3s0 en0 en1; do
-            ip=$(timeout 2 ip -4 addr show $iface 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1)
-            [ -n "$ip" ] && break
-        done
-        if [ -z "$ip" ]; then
-            ip=$(timeout 2 ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
-        fi
-        if [ -z "$ip" ] && command -v ifconfig >/dev/null; then
-            ip=$(timeout 2 ifconfig 2>/dev/null | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1)
-        fi
-        if [ -z "$ip" ]; then
-            ip=$(timeout 2 ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1 | head -1)
-        fi
+        local ip=$(get_ip)
         ip="${ip:-❌ Tidak ada IP}"
 
         if pgrep -x sshd >/dev/null; then
@@ -216,11 +235,17 @@ fi
 
 title "TERMUX CONNECTING v${VERSION} — Setup"
 
-# ─── 1. coreutils ───
+# ─── 1. coreutils & iproute2 ───
 if ! command -v timeout >/dev/null; then
     echo "  Dibutuhkan: coreutils (untuk timeout)"
     if confirm "Install coreutils" "y"; then
         pkg install -y coreutils
+    fi
+fi
+if ! command -v ip >/dev/null; then
+    echo "  Dibutuhkan: iproute2 (untuk deteksi IP)"
+    if confirm "Install iproute2" "y"; then
+        pkg install -y iproute2
     fi
 fi
 
@@ -321,19 +346,7 @@ echo ""
 title "5. Informasi Koneksi"
 USERNAME=$(whoami)
 
-IP=""
-if command -v ip >/dev/null; then
-    IP=$(timeout 3 ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1 | head -1)
-fi
-if [ -z "$IP" ] && command -v ifconfig >/dev/null; then
-    IP=$(timeout 3 ifconfig 2>/dev/null | awk '/inet /{print $2}' | grep -v 127.0.0.1 | head -1)
-fi
-if [ -z "$IP" ] && [ -d /data/data/com.termux ]; then
-    IP=$(timeout 3 ip route get 1.1.1.1 2>/dev/null | awk '{print $7}' | head -1)
-fi
-if [ -z "$IP" ]; then
-    IP=""
-fi
+IP=$(get_ip)
 
 is_cgnat() {
     [[ "$1" =~ ^10\. ]] || [[ "$1" =~ ^100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\. ]]
@@ -365,7 +378,7 @@ elif is_cgnat "$IP"; then
     echo "  2. Buka Pengaturan → WiFi, hubungkan ke jaringan yang sama dengan PC"
     echo "  3. Catat IP yang muncul (biasanya 192.168.x.x)"
     echo "  4. Jalankan ulang: termux-connecting -y"
-    echo "  5. Atau cek IP manual: ip a | grep wlan"
+    echo "  5. Atau cek IP manual: ip a | grep wlan (atau: ifconfig, atau: getprop dhcp.wlan0.ipaddress)"
 elif is_wifi "$IP"; then
     CONNECTION_OK=true
     echo "  Di PC/Mac:"
@@ -383,7 +396,7 @@ else
     warn "IP ${IP} tidak dikenal — mungkin bukan jaringan lokal"
     echo "  Pastikan HP terhubung ke WiFi, bukan data seluler."
     echo ""
-    echo "  Cek koneksi WiFi: ip a | grep wlan"
+    echo "  Cek koneksi WiFi: ip a (atau: ifconfig, getprop dhcp.wlan0.ipaddress)"
     echo "  Jika IP masih ${IP}, mungkin HP menggunakan VPN/proxy."
     echo "  Matikan VPN dan coba lagi: termux-connecting -y"
 fi

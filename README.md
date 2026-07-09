@@ -12,9 +12,10 @@ Jalankan di HP (Termux):
 curl -fsSL https://raw.githubusercontent.com/Ariska138/termux-connecting/main/install.sh | bash
 ```
 
-Atau via npm:
+Atau via npm (wajib install Node.js dulu):
 
 ```bash
+pkg install -y nodejs
 npm i -g termux-connecting
 ```
 

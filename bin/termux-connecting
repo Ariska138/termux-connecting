@@ -96,7 +96,7 @@ if $CHECK; then
             echo "     $iface : $addr"
         fi
     done
-    local any_ip=$(get_ip)
+    any_ip=$(get_ip)
     if [ -z "$any_ip" ]; then
         echo "     ❌  Tidak ada IP (nonaktif/data)"
     fi

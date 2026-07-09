@@ -13,7 +13,7 @@
   "keywords": ["termux", "android", "ssh", "setup", "terminal"],
   "license": "MIT",
   "author": "Ariska138",
-  "files": ["bin/", "install.sh", "README.md"],
+  "files": ["bin/", "install.sh", "README.md", "scripts/postinstall.sh"],
   "engines": {
     "node": ">=12"
   },

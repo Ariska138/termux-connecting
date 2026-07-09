@@ -8,9 +8,69 @@ error() { echo -e "${RED}[✗]${NC} $1"; }
 title() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}\n"; }
 
 AUTO=false
+CHECK=false
 for arg in "$@"; do
     [ "$arg" = "-y" ] && AUTO=true
+    [ "$arg" = "--check" ] || [ "$arg" = "--status" ] && CHECK=true
 done
+
+# ─── Mode: Check/Status ───
+if $CHECK; then
+    echo ""
+    title "TERMUX CONNECTING — Status"
+    echo "  ⏱  Uptime HP  : $(uptime -p 2>/dev/null || echo 'N/A')"
+    echo ""
+    echo "  🔑 SSH Server :"
+    if pgrep -x sshd >/dev/null; then
+        sshd_pid=$(pgrep -x sshd | head -1)
+        echo "     ✅  Berjalan (PID: $sshd_pid)"
+        if [ -n "$sshd_pid" ] && [ -d /proc/$sshd_pid ]; then
+            echo "     ⏱  Uptime: $(ps -o etime= -p $sshd_pid 2>/dev/null | xargs)"
+        fi
+    else
+        echo "     ❌  Tidak berjalan"
+    fi
+    echo ""
+    echo "  🌐 Network    :"
+    for iface in wlan0 eth0; do
+        addr=$(timeout 2 ip -4 addr show $iface 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1)
+        if [ -n "$addr" ]; then
+            echo "     $iface : $addr"
+        fi
+    done
+    if [ -z "$(timeout 2 ip -4 addr show 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1 | grep -v 127.0.0.1)" ]; then
+        echo "     ❌  Tidak ada IP (nonaktif/data)"
+    fi
+    echo ""
+    echo "  ☕  Wake Lock  :"
+    if command -v termux-wake-lock >/dev/null; then
+        echo "     ✅  Tersedia"
+    else
+        echo "     ❌  Tidak terinstall (termux-api)"
+    fi
+    echo ""
+    echo "  💾 Storage    :"
+    if [ -d "$HOME/storage" ]; then
+        echo "     ✅  Terkonfigurasi"
+    else
+        echo "     ❌  Belum (termux-setup-storage)"
+    fi
+    echo ""
+    echo "  🚀 Auto-start :"
+    if [ -f "$HOME/.termux/boot/boot-sshd" ]; then
+        echo "     ✅  Boot script ada"
+    else
+        echo "     ❌  Belum diatur"
+    fi
+    echo ""
+    echo "  ⚡ Battery Opt :"
+    echo "     Cek manual: Setelan → Aplikasi → Termux → Baterai"
+    echo ""
+    echo "  🖥  User      : $(whoami)"
+    echo "  🔌 Port      : 8022"
+    echo ""
+    exit 0
+fi
 
 confirm() {
     local msg="$1" default="$2"

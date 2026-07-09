@@ -18,6 +18,12 @@ if [ ! -d "$PREFIX" ]; then
     exit 1
 fi
 
+# Cek & install git
+if ! command -v git; then
+    echo "[*] Git belum terinstall. Install dulu..."
+    pkg install -y git
+fi
+
 # Clone atau pull repo
 if [ -d "$INSTALL_DIR" ]; then
     echo "[*] Update repo yang sudah ada..."

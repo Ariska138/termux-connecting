@@ -11,14 +11,36 @@ title() { echo -e "\n${CYAN}━━━ $1 ━━━${NC}\n"; }
 
 AUTO=false
 CHECK=false
+MONITOR=false
+HELP=false
 DEBUG=false
 for arg in "$@"; do
     [ "$arg" = "-y" ] && AUTO=true
     [ "$arg" = "--check" ] || [ "$arg" = "--status" ] && CHECK=true
+    [ "$arg" = "--monitor" ] && MONITOR=true
+    [ "$arg" = "--help" ] || [ "$arg" = "-h" ] && HELP=true
     [ "$arg" = "--debug" ] && DEBUG=true
 done
 
 $DEBUG && set -x
+
+if $HELP; then
+    echo ""
+    title "TERMUX CONNECTING v${VERSION} — Bantuan"
+    echo "  Penggunaan: termux-connecting [opsi]"
+    echo ""
+    echo "  Opsi:"
+    echo "    (tanpa opsi)   Jalankan setup interaktif"
+    echo "    -y             Setup otomatis (skip konfirmasi)"
+    echo "    --check, --status  Tampilkan status SSH & jaringan"
+    echo "    --monitor      Mode realtime monitoring (auto-restart sshd)"
+    echo "    --help, -h     Tampilkan bantuan ini"
+    echo "    --debug        Aktifkan tracing (set -x)"
+    echo ""
+    echo "  Subcommand (PC): termux-connect-pc --help"
+    echo ""
+    exit 0
+fi
 
 # ─── Mode: Check/Status ───
 if $CHECK; then
@@ -78,6 +100,70 @@ if $CHECK; then
     exit 0
 fi
 
+# ─── Mode: Monitor ───
+monitor_loop() {
+    local version="$VERSION"
+    local interval=5
+
+    echo ""
+    info "Mode monitoring aktif. Ketik 'exit' untuk keluar."
+    sleep 1
+
+    set +e
+    while true; do
+        local now=$(date '+%H:%M:%S')
+        local uptime_str=$(uptime -p 2>/dev/null | sed 's/^up //')
+        local ip=""
+        local sshd_pid=""
+
+        for iface in wlan0 eth0; do
+            ip=$(timeout 2 ip -4 addr show $iface 2>/dev/null | awk '/inet /{print $2}' | cut -d/ -f1)
+            [ -n "$ip" ] && break
+        done
+        if [ -z "$ip" ]; then
+            ip=$(timeout 2 ip route get 1.1.1.1 2>/dev/null | awk '{print $7}')
+        fi
+        ip="${ip:-❌ Tidak ada IP}"
+
+        if pgrep -x sshd >/dev/null; then
+            sshd_pid=$(pgrep -x sshd | head -1)
+            local sshd_uptime=$(ps -o etime= -p "$sshd_pid" 2>/dev/null | xargs)
+            local sshd_label="${sshd_pid} (${sshd_uptime})"
+        else
+            sshd_label="❌ Mati — restart..."
+            sshd 2>/dev/null
+        fi
+
+        local connections=$(ss -tnp 2>/dev/null | grep -c ':8022.*ESTAB' 2>/dev/null || echo 0)
+
+        clear 2>/dev/null || printf "\033c"
+        echo ""
+        echo "  ╔══════════════════════════════════════════╗"
+        echo "  ║     TERMUX CONNECTING — MONITOR v${VERSION}    ║"
+        echo "  ╠══════════════════════════════════════════╣"
+        printf "  ║  ⏱  %-36s ║\n" "Waktu    : $now"
+        printf "  ║  ⏱  %-36s ║\n$([[ "$uptime_str" != "" ]] && echo "  ║     Uptime   : $uptime_str")"
+        printf "  ║  🔑  %-36s ║\n" "SSHD PID : $sshd_label"
+        printf "  ║  🌐  %-36s ║\n$([[ "$ip" != "" ]] && echo "  ║     IP       : $ip")"
+        printf "  ║  🔗  %-36s ║\n" "Koneksi  : $connections aktif"
+        echo "  ╠══════════════════════════════════════════╣"
+        echo "  ║  Ketik 'exit' lalu Enter untuk keluar     ║"
+        echo "  ╚══════════════════════════════════════════╝"
+
+        read -t "$interval" input
+        [ "$input" = "exit" ] && break
+    done
+
+    echo ""
+    info "Monitoring dihentikan"
+    set -e
+}
+
+if $MONITOR; then
+    monitor_loop
+    exit 0
+fi
+
 confirm() {
     local msg="$1" default="$2"
     $AUTO && return 0
@@ -105,13 +191,18 @@ if [ ! -f "$WELCOME_FILE" ]; then
     echo -e "${CYAN}Di PC/Mac, jalankan:${NC}"
     echo "  termux-connect-pc"
     echo ""
+    echo -e "${CYAN}Opsi termux-connecting (HP):${NC}"
+    echo "  termux-connecting           Setup interaktif"
+    echo "  termux-connecting -y        Setup otomatis (skip konfirmasi)"
+    echo "  termux-connecting --check   Cek status SSH & jaringan"
+    echo "  termux-connecting --monitor Realtime monitoring + auto-restart"
+    echo "  termux-connecting --help    Bantuan"
+    echo ""
     echo -e "${CYAN}Subcommand PC:${NC}"
     echo "  termux-connect-pc connection    Setup/ubah koneksi"
     echo "  termux-connect-pc check         Cek koneksi & kirim alert Telegram"
     echo "  termux-connect-pc help          Bantuan"
     echo "  termux-connect-pc version       Versi"
-    echo ""
-    echo -e "${YELLOW}Gunakan -y untuk skip semua konfirmasi: termux-connecting -y${NC}"
     echo ""
     mkdir -p "$HOME/.config/termux-connecting"
     touch "$WELCOME_FILE"
@@ -305,6 +396,7 @@ if [ "$AUTO" = "false" ]; then
         echo "  3) Status SSH server"
         echo "  4) Tampilkan ulang info koneksi"
         echo "  5) Cek permission & fitur"
+        echo "  6) Realtime monitoring"
         echo ""
         echo -n "  Pilih [1]: "
         read -r post_choice
@@ -339,9 +431,9 @@ if [ "$AUTO" = "false" ]; then
                 command -v termux-wake-lock >/dev/null 2>&1 && HAS_WAKE="yes"
                 title "Status Permission & Fitur"
                 echo "  ┌─────────────────────────────────────────────┐"
-                [ "$HAS_STORAGE" = "yes" ] && echo "  │  ✅  Storage      — akses penyimpanan  │" || echo "  │  ❌  Storage      — akses penyimpanan  │"
-                [ "$HAS_BOOT" = "yes" ] && echo "  │  ✅  Termux:Boot  — auto-start sshd    │" || echo "  │  ❌  Termux:Boot  — auto-start sshd    │"
-                [ "$HAS_WAKE" = "yes" ] && echo "  │  ✅  Wake lock    — koneksi tetap saat mati layar │" || echo "  │  ❌  Wake lock    — koneksi tetap saat mati layar │"
+                echo "  │  ✅  Storage      — akses penyimpanan  │" | sed "s/✅/$([ "$HAS_STORAGE" = "yes" ] && echo '✅' || echo '❌')/"
+                echo "  │  ✅  Termux:Boot  — auto-start sshd    │" | sed "s/✅/$([ "$HAS_BOOT" = "yes" ] && echo '✅' || echo '❌')/"
+                echo "  │  ✅  Wake lock    — koneksi tetap saat mati layar │" | sed "s/✅/$([ "$HAS_WAKE" = "yes" ] && echo '✅' || echo '❌')/"
                 echo "  └─────────────────────────────────────────────┘"
                 echo ""
                 if [ "$HAS_STORAGE" = "no" ] && confirm "  Setup storage permission" "y"; then termux-setup-storage; echo "  Izininkan pop-up permission di Android"; echo ""; fi
@@ -349,6 +441,7 @@ if [ "$AUTO" = "false" ]; then
                 if [ "$HAS_BOOT" = "no" ] && confirm "  Setup auto-start sshd (Termux:Boot)" "y"; then mkdir -p "$HOME/.termux/boot"; echo 'sshd' > "$HOME/.termux/boot/boot-sshd"; chmod +x "$HOME/.termux/boot/boot-sshd"; info "Boot script: ~/.termux/boot/boot-sshd"; echo "  https://f-droid.org/packages/com.termux.boot/"; echo "  Reboot HP agar sshd jalan otomatis"; echo ""; fi
                 [ "$HAS_WAKE" = "yes" ] && termux-wake-lock 2>/dev/null && info "Wake lock aktif"
                 ;;
+            6) monitor_loop ;;
             *) break ;;
         esac
     done

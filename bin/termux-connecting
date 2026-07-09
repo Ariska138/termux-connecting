@@ -376,25 +376,19 @@ if [ -n "$IP" ]; then
         echo "  Gateway: $gateway"
         result=$(timeout 5 ping -c 2 -W 2 "$gateway" 2>&1)
         loss=$(echo "$result" | awk '/loss/{print $6}' | tr -d '%')
-        rtt=$(echo "$result" | awk -F'/' '/rtt/{print $5}')
-        if [ -n "$loss" ] && [ "$loss" -lt 50 ] 2>/dev/null; then
+        if [ -n "$loss" ] && [ "$loss" -lt 1 ] 2>/dev/null; then
             STABLE=true
-            info "Jaringan stabil (packet loss: ${loss}%, RTT: ${rtt:-N/A}ms)"
+            info "Jaringan stabil (0% loss)"
         else
-            warn "Jaringan tidak stabil (packet loss: ${loss:-100}%)"
+            error "Jaringan tidak stabil (packet loss: ${loss:-100}%)"
+            echo "  Setup dibatalkan."
             echo ""
-            echo "  Kemungkinan penyebab:"
-            echo "  • Sinyal WiFi lemah — dekatkan ke router"
-            echo "  • Router sibuk / banyak perangkat"
-            echo "  • HP dalam mode hemat daya"
-            echo ""
-            if confirm "Tetap lanjutkan setup" "n"; then
-                STABLE=true
-            else
-                echo ""
-                info "Setup dibatalkan. Perbaiki jaringan lalu ulangi."
-                exit 0
-            fi
+            echo "  Perbaiki:"
+            echo "  • Dekatkan HP ke router"
+            echo "  • Matikan data seluler / VPN"
+            echo "  • Nonaktifkan hemat daya"
+            echo "  • Ulangi: termux-connecting -y"
+            exit 1
         fi
     else
         warn "Tidak bisa deteksi gateway — lewati pengecekan"

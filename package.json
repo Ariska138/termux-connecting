@@ -3,8 +3,8 @@
   "version": "1.1.2",
   "description": "CLI setup Termux + koneksi SSH dari PC/Mac dengan Telegram alert",
   "bin": {
-    "termux-connecting": "./bin/termux-connecting",
-    "termux-connect-pc": "./bin/termux-connect-pc"
+    "termux-connecting": "bin/termux-connecting",
+    "termux-connect-pc": "bin/termux-connect-pc"
   },
   "repository": {
     "type": "git",

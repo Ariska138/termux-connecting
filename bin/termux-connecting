@@ -209,9 +209,9 @@ if command -v termux-wake-lock >/dev/null; then
     termux-wake-lock 2>/dev/null && info "Wake lock aktif — koneksi tetap terjaga saat layar mati"
 fi
 
-# notification — agar Android tidak kill Termux (timeout 3 detik)
-if command -v termux-notification >/dev/null; then
-    timeout 3 termux-notification -t "Termux Connecting" -c "SSH server berjalan — port 8022" --id sshd-keepalive --ongoing 2>/dev/null || true
+# notification — agar Android tidak kill Termux (non-blocking)
+if command -v termux-notification >/dev/null && timeout 2 termux-notification --help >/dev/null 2>&1; then
+    termux-notification -t "Termux Connecting" -c "SSH server berjalan — port 8022" --id sshd-keepalive --ongoing >/dev/null 2>&1 &
 fi
 
 # battery optimization — buka setelan langsung

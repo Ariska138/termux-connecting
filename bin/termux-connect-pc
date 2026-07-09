@@ -79,78 +79,147 @@ cmd_connection() {
     local new_name="${1:-}"
     load_active
 
-    # Jika ada argumen nama, setup device baru
     if [ -n "$new_name" ]; then
         HOST_ALIAS="$new_name"
     fi
 
     title "TERMUX CONNECT — Connection Setup"
+    echo "Saya akan bantu kamu menghubungkan PC ini ke Termux di HP."
+    echo ""
 
+    # ── Dialog: device baru atau edit existing ──
     if [ -z "$new_name" ] && [ -n "$ACTIVE_DEVICE" ]; then
-        echo "  Device aktif: $ACTIVE_DEVICE"
-        echo -n "  Setup device baru? [y/N]: "
+        echo "  Saat ini device aktif: $ACTIVE_DEVICE"
+        echo -n "  ➤  Setup device baru? [y/N]: "
         read -r new_dev
         if [[ "$new_dev" =~ ^[Yy]$ ]]; then
-            new_name=$(prompt "Nama device baru" "")
+            echo ""
+            echo "  Oke, kita akan setup HP lain."
+            new_name=$(prompt "  ➤  Beri nama device ini" "")
             HOST_ALIAS="$new_name"
         else
-            # Edit device aktif
             load_config || true
             HOST_ALIAS="${ACTIVE_DEVICE}"
         fi
     fi
 
+    # ── Dialog: nama device ──
     if [ -z "$HOST_ALIAS" ]; then
-        HOST_ALIAS=$(prompt "Nama alias" "termux-a8star")
+        echo ""
+        echo "  Beri nama untuk HP ini, misal 'hp-kantor' atau 'hp-rumah'."
+        HOST_ALIAS=$(prompt "  ➤  Nama device" "termux-a8star")
     fi
 
-    SSH_USER=$(prompt "Username" "${SSH_USER:-u0_a237}")
-    SSH_HOST=$(prompt "IP Address" "${SSH_HOST:-192.168.1.8}")
+    # ── Dialog: username ──
+    echo ""
+    echo "  Sekarang kita perlu data login SSH."
+    echo "  Username bisa dicek di Termux dengan perintah: whoami"
+    SSH_USER=$(prompt "  ➤  Username" "${SSH_USER:-u0_a237}")
 
+    # ── Dialog: IP address ──
+    echo ""
+    echo "  IP Address bisa dicek di Termux dengan: ip a | grep inet"
+    echo "  Pastikan HP dan PC terhubung ke WiFi yang SAMA."
+    SSH_HOST=$(prompt "  ➤  IP Address" "${SSH_HOST:-192.168.1.8}")
+
+    # ── Dialog: Port ──
+    echo ""
+    echo -n "  ➤  Port SSH [8022]: "; read -r port
+    SSH_PORT="${port:-8022}"
+
+    # ── Konfirmasi ──
+    echo ""
+    echo "  ┌──────────────────────────────────────┐"
+    echo "  │  Device : $HOST_ALIAS"
+    echo "  │  Login  : ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
+    echo "  └──────────────────────────────────────┘"
+    echo ""
+    echo -n "  ➤  Lanjutkan koneksi? [Y/n]: "
+    read -r proceed
+    if [[ -n "$proceed" && ! "$proceed" =~ ^[Yy]$ ]]; then
+        echo "  Baik, batalkan. Jalankan lagi saat siap."
+        return
+    fi
+
+    # ── Cek Konektifitas ──
     title "1. Cek Konektifitas"
-    echo "Mencoba ke ${SSH_USER}@${SSH_HOST}:${SSH_PORT}..."
+    echo "  Mencoba koneksi ke ${SSH_USER}@${SSH_HOST}:${SSH_PORT}..."
+    echo ""
 
     local connected=false
+
+    # Key-based
     if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
         info "Koneksi berhasil (key-based)"
         connected=true
+    # Password via sshpass
     elif command -v sshpass >/dev/null; then
+        echo "  SSH key tidak dikenali. Coba dengan password..."
         local pass
-        pass=$(prompt "Password SSH" "")
+        pass=$(prompt "  ➤  Password SSH" "")
         if timeout 10 sshpass -p "$pass" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
             info "Koneksi berhasil (password)"
             connected=true
         fi
+    # Manual
     else
         echo ""
-        warn "sshpass tidak terinstall. Konek manual dulu: ssh -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}"
-        echo -n "  Setelah berhasil, tekan enter untuk lanjut..."; read -r
+        warn "  sshpass tidak terinstall."
+        echo "  Silakan konek manual dari terminal lain:"
+        echo "  ssh -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}"
+        echo ""
+        echo -n "  ➤  Setelah berhasil, tekan enter untuk lanjut..."; read -r
         if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" "echo connected"; then
             connected=true
         fi
     fi
 
+    # ── Gagal total ──
     if ! $connected; then
-        error "Tidak bisa terhubung ke ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
-        echo "  Pastikan sshd sudah jalan di Termux dan satu jaringan."
+        error "Gagal terhubung ke ${SSH_USER}@${SSH_HOST}:${SSH_PORT}"
+        echo ""
+        echo "  Pastikan:"
+        echo "  1. HP sudah menjalankan: sshd (di Termux)"
+        echo "  2. HP dan PC dalam jaringan WiFi yang SAMA"
+        echo "  3. IP dan username yang dimasukkan benar"
+        echo ""
+        echo "  Coba lagi: termux-connect-pc connection"
         return
     fi
 
-    # SSH key
+    # ── Setup SSH key ──
+    title "2. Setup SSH Key (biar tanpa password)"
+    echo "  Dengan SSH key, kamu tidak perlu input password setiap kali konek."
+    echo ""
+
     if [ ! -f "$SSH_KEY" ]; then
-        echo ""
-        echo -n "Buat SSH key biar tanpa password? [Y/n]: "
+        echo -n "  ➤  Buat SSH key sekarang? [Y/n]: "
         read -r mk
         if [[ -z "$mk" || "$mk" =~ ^[Yy]$ ]]; then
+            echo "  Membuat SSH key..."
             ssh-keygen -t ed25519 -f "$SSH_KEY" -N "" -C "termux-connect"
+            info "SSH key dibuat: $SSH_KEY"
         fi
-    fi
-    if [ -f "$SSH_KEY" ]; then
-        timeout 15 ssh-copy-id -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}" 2>&1 || \
-            warn "Copy key gagal. Manual: ssh-copy-id -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}"
+    else
+        info "SSH key sudah ada: $SSH_KEY"
     fi
 
-    # SSH config
+    if [ -f "$SSH_KEY" ]; then
+        echo ""
+        echo "  Meng-copy public key ke HP..."
+        if timeout 15 ssh-copy-id -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p "$SSH_PORT" "${SSH_USER}@${SSH_HOST}"; then
+            info "Public key berhasil di-copy ke HP"
+        else
+            warn "Gagal copy otomatis. Copy manual:"
+            echo "  ssh-copy-id -p ${SSH_PORT} ${SSH_USER}@${SSH_HOST}"
+        fi
+    fi
+
+    # ── Setup SSH config ──
+    title "3. Setup SSH Config"
+    echo "  Membuat alias '${HOST_ALIAS}' di ~/.ssh/config"
+    echo "  Nanti cukup: ssh ${HOST_ALIAS}"
+    echo ""
     mkdir -p "$HOME/.ssh"
     if ! grep -q "Host $HOST_ALIAS$" "$HOME/.ssh/config"; then
         cat >> "$HOME/.ssh/config" << EOF
@@ -163,38 +232,48 @@ Host $HOST_ALIAS
     UserKnownHostsFile /dev/null
 EOF
         chmod 600 "$HOME/.ssh/config"
+        info "SSH config siap: ssh $HOST_ALIAS"
+    else
+        info "Host '$HOST_ALIAS' sudah ada di SSH config"
     fi
-    info "Koneksi siap: ssh $HOST_ALIAS"
 
-    # Telegram — hanya first time
+    # ── Telegram ──
+    title "4. Telegram Alert (opsional)"
+    echo "  Dapat notifikasi saat koneksi ke HP ini putus."
+    echo ""
+    echo -n "  ➤  Setup Telegram? [y/N]: "
+    read -r tk
     local tel_setup=false
-    if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+    if [[ "$tk" =~ ^[Yy]$ ]]; then
         echo ""
-        title "2. Telegram Alert (opsional)"
-        echo -n "Ingat notifikasi Telegram saat koneksi putus? [y/N]: "
-        read -r tk
-        if [[ "$tk" =~ ^[Yy]$ ]]; then
-            TELEGRAM_BOT_TOKEN=$(prompt "Bot Token (dari @BotFather)" "")
-            TELEGRAM_CHAT_ID=$(prompt "Chat ID (atau @username)" "")
-            if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-                tel_setup=true
-            else
-                warn "Lewati Telegram. Bisa diatur nanti edit file device."
-            fi
+        echo "  Butuh Bot Token dari @BotFather dan Chat ID kamu."
+        TELEGRAM_BOT_TOKEN=$(prompt "  ➤  Bot Token" "")
+        TELEGRAM_CHAT_ID=$(prompt "  ➤  Chat ID (atau @username)" "")
+        if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            tel_setup=true
+        else
+            warn "Data tidak lengkap. Telegram bisa diatur nanti."
         fi
     fi
 
-    # Simpan & set active
+    # ── Simpan ──
     save_config "$HOST_ALIAS"
     set_active "$HOST_ALIAS"
 
     if $tel_setup; then
-        telegram_alert "✅ *termux-connect-pc* — Admin tersimpan"
-        info "Telegram alert aktif"
+        telegram_alert "✅ *termux-connect-pc* — Device ${HOST_ALIAS} siap"
+        info "Telegram alert aktif ✅"
     fi
 
     echo ""
-    info "Setup selesai! Jalankan: termux-connect-pc check"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    info "Setup selesai!"
+    echo ""
+    echo "  Koneksi: ssh ${HOST_ALIAS}"
+    echo "  Cek     : termux-connect-pc check"
+    echo "  Device lain: termux-connect-pc connection <nama>"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
 }
 
 # ─── COMMAND: list ────────────────────────────────────────────

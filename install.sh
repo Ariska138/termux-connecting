@@ -24,7 +24,7 @@ if [ -d "$INSTALL_DIR" ]; then
     cd "$INSTALL_DIR" && git pull
 else
     echo "[*] Clone repo..."
-    git clone "$REPO.git" "$INSTALL_DIR"
+    timeout 120 git clone --depth 1 "$REPO.git" "$INSTALL_DIR"
 fi
 
 # Buat symlink ke PATH

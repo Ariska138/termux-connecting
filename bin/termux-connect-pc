@@ -62,7 +62,7 @@ setup_cloudflare_tunnel() {
                     return
                 fi
             elif [[ "$(uname)" == "Linux" ]]; then
-                curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared && info "cloudflared terinstall"
+                curl -L --connect-timeout 15 --max-time 60 https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared && chmod +x /usr/local/bin/cloudflared && info "cloudflared terinstall"
             else
                 error "OS tidak dikenal. Install manual."
                 return
@@ -147,7 +147,7 @@ main() {
         if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -lt "$i" ]; then
             select_host="${known_hosts[$((choice-1))]}"
             info "Menggunakan host: $select_host"
-            if ssh -o ConnectTimeout=5 -o BatchMode=yes "$select_host" "echo connected"; then
+            if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes "$select_host" "echo connected"; then
                 info "Koneksi SSH berhasil dengan host $select_host"
                 echo ""
                 echo -n "Ingin setup tunnel Cloudflare? [y/N]: "
@@ -174,7 +174,7 @@ main() {
     echo "Mencoba koneksi ke ${username}@${ip}:${SSH_PORT}..."
 
     local connected=false
-    if ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${username}@${ip}" "echo connected"; then
+    if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${username}@${ip}" "echo connected"; then
         info "Koneksi SSH berhasil (key-based)"
         connected=true
     elif command -v sshpass; then
@@ -217,9 +217,9 @@ main() {
 
     if [ -f "$SSH_KEY" ]; then
         echo "Mencoba copy public key ke perangkat..."
-        if ssh-copy-id -o StrictHostKeyChecking=no -p "$SSH_PORT" "${username}@${ip}"; then
+        if timeout 15 ssh-copy-id -o StrictHostKeyChecking=no -o ConnectTimeout=10 -p "$SSH_PORT" "${username}@${ip}"; then
             info "SSH key berhasil di-copy. Koneksi tanpa password siap!"
-            if ssh -o BatchMode=yes -p "$SSH_PORT" "${username}@${ip}" "echo connected"; then
+            if timeout 10 ssh -o ConnectTimeout=5 -o BatchMode=yes -p "$SSH_PORT" "${username}@${ip}" "echo connected"; then
                 info "Verifikasi key-based login: berhasil"
             fi
         else

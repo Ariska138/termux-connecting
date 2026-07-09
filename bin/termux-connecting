@@ -19,7 +19,7 @@ echo "----------------------------------------"
 
 title "1. Update & Upgrade Paket"
 echo "Menjalankan pkg update && pkg upgrade..."
-if pkg update -y && pkg upgrade -y; then
+if timeout 300 pkg update -y && timeout 300 pkg upgrade -y; then
     info "Update & upgrade berhasil"
 else
     warn "Gagal update/upgrade. Mungkin repo tidak stabil."

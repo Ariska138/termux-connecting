@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 #
 # termux-connecting — Installer via curl
-# Usage: curl -fsSL https://github.com/Ariska138/termux-connecting/install.sh | bash
+# Usage: curl -fsSL https://raw.githubusercontent.com/Ariska138/termux-connecting/main/install.sh | bash
 
 set -e
 

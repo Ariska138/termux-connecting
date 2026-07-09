@@ -9,7 +9,7 @@ CLI untuk setup Termux dan koneksi SSH dari PC/Mac — plus Telegram alert jika 
 Jalankan di HP (Termux):
 
 ```bash
-curl -fsSL https://github.com/Ariska138/termux-connecting/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Ariska138/termux-connecting/main/install.sh | bash
 ```
 
 Atau via npm:

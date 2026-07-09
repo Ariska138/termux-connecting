@@ -356,10 +356,6 @@ is_wifi() {
     [[ "$1" =~ ^192\.168\. ]] || [[ "$1" =~ ^172\.(1[6-9]|2[0-9]|3[01])\. ]]
 }
 
-is_hotspot() {
-    [[ "$1" =~ ^192\.168\.43\. ]] || [[ "$1" =~ ^192\.168\.42\. ]]
-}
-
 echo "  Username : $USERNAME"
 echo "  IP       : ${IP:-tidak terdeteksi}"
 echo "  Port     : 8022"
@@ -390,36 +386,12 @@ elif is_wifi "$IP"; then
     echo ""
     warn "Pastikan HP dan PC terhubung ke jaringan WiFi YANG SAMA"
     echo ""
-
-    if is_hotspot "$IP"; then
-        echo "  ──────────────────────────────────────"
-        echo "  🔗 MODE HOTSPOT"
-        echo "  HP sebagai hotspot, PC terhubung ke HP."
-        echo ""
-        echo "  ⚠  Catatan Internet:"
-        echo "     ✅ SSH ke HP: BERHASIL"
-        echo "     ❌ Internet PC: DATA SELULER harus ON"
-        echo "     ❌ Internet HP mati jika data seluler OFF"
-        echo ""
-        echo "  💡 Untuk stabilitas:"
-        echo "     • Colok charger HP (hotspot boros baterai)"
-        echo "     • Jangan jauh-jauh dari PC (max 5-10m)"
-        echo "     • Cegah HP sleep: wake lock sudah aktif"
-        echo "     • Alternatif: pakai WiFi router (lebih stabil)"
-        echo "  ──────────────────────────────────────"
-    else
-        echo "  ──────────────────────────────────────"
-        echo "  🔗 MODE WiFi ROUTER"
-        echo "  HP dan PC terhubung ke router yang sama."
-        echo ""
-        echo "  ⚠  Catatan Internet:"
-        echo "     ✅ SSH ke HP: BERHASIL"
-        echo "     ✅ Internet PC: stabil (lewat router)"
-        echo "     ✅ Data seluler HP: BISA dimatikan"
-        echo ""
-        echo "  💡 Ini mode paling stabil untuk SSH."
-        echo "  ──────────────────────────────────────"
-    fi
+    echo "  ─── Catatan Jaringan ───"
+    echo "  • SSH ke HP: ✅ berhasil di mode APAPUN"
+    echo "  • Internet PC tergantung skema jaringan:"
+    echo "     - Jika HP hotspot   → data seluler HP harus ON"
+    echo "     - Jika WiFi router  → internet lewat router, data HP bisa OFF"
+    echo "  • Untuk stabilitas: colok charger jika hotspot"
     echo ""
     echo "  Data koneksi — simpan untuk setup PC:"
     echo "  ┌──────────────────────────────────┐"

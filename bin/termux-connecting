@@ -361,6 +361,50 @@ echo "  IP       : ${IP:-tidak terdeteksi}"
 echo "  Port     : 8022"
 echo ""
 
+# ─── Cek Stabilitas Jaringan ───
+title "6. Cek Stabilitas Jaringan"
+STABLE=false
+if [ -n "$IP" ]; then
+    echo "  Ping gateway untuk verifikasi koneksi..."
+    gateway=$(timeout 3 ip route 2>/dev/null | awk '/default via/{print $3}' | head -1)
+    if [ -z "$gateway" ] && command -v getprop >/dev/null; then
+        iface=$(getprop wifi.interface 2>/dev/null)
+        [ -z "$iface" ] && iface="wlan0"
+        gateway=$(getprop dhcp.${iface}.gateway 2>/dev/null)
+    fi
+    if [ -n "$gateway" ]; then
+        echo "  Gateway: $gateway"
+        result=$(timeout 5 ping -c 2 -W 2 "$gateway" 2>&1)
+        loss=$(echo "$result" | awk '/loss/{print $6}' | tr -d '%')
+        rtt=$(echo "$result" | awk -F'/' '/rtt/{print $5}')
+        if [ -n "$loss" ] && [ "$loss" -lt 50 ] 2>/dev/null; then
+            STABLE=true
+            info "Jaringan stabil (packet loss: ${loss}%, RTT: ${rtt:-N/A}ms)"
+        else
+            warn "Jaringan tidak stabil (packet loss: ${loss:-100}%)"
+            echo ""
+            echo "  Kemungkinan penyebab:"
+            echo "  • Sinyal WiFi lemah — dekatkan ke router"
+            echo "  • Router sibuk / banyak perangkat"
+            echo "  • HP dalam mode hemat daya"
+            echo ""
+            if confirm "Tetap lanjutkan setup" "n"; then
+                STABLE=true
+            else
+                echo ""
+                info "Setup dibatalkan. Perbaiki jaringan lalu ulangi."
+                exit 0
+            fi
+        fi
+    else
+        warn "Tidak bisa deteksi gateway — lewati pengecekan"
+        STABLE=true
+    fi
+else
+    warn "Tidak ada IP — lewati pengecekan"
+fi
+echo ""
+
 CONNECTION_OK=false
 
 if [ -z "$IP" ]; then

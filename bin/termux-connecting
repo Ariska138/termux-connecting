@@ -138,6 +138,20 @@ else
     fi
 fi
 
+# wake lock — cegah Termux dimatikan saat layar mati
+if command -v termux-wake-lock >/dev/null; then
+    termux-wake-lock sshd 2>/dev/null && info "Wake lock aktif — koneksi tetap terjaga saat layar mati"
+fi
+
+# battery optimization — matikan agar Termux tidak di-kill Android
+if command -v termux-battery-status >/dev/null 2>&1; then
+    : # termux-api tersedia
+else
+    echo "  Matikan battery optimization untuk Termux di Pengaturan:"
+    echo "  Setelan → Aplikasi → Termux → Baterai → Tidak dioptimalkan"
+    echo ""
+fi
+
 # ─── 6. Informasi Koneksi ───
 title "5. Informasi Koneksi"
 USERNAME=$(whoami)
@@ -219,26 +233,37 @@ info "Setup selesai!"
 echo ""
 
 # ─── Opsional: Cek Permission (hanya jika koneksi OK) ───
-if [ "$CONNECTION_OK" = "true" ] && [ "$AUTO" = "false" ] && confirm "Cek permission tambahan (storage, auto-start sshd)" "n"; then
+if [ "$CONNECTION_OK" = "true" ] && [ "$AUTO" = "false" ] && confirm "Cek permission & fitur (storage, auto-start, wake lock)" "n"; then
     echo ""
     title "Status Permission & Fitur"
 
-    HAS_STORAGE="no"; HAS_BOOT="no"
+    HAS_STORAGE="no"; HAS_BOOT="no"; HAS_WAKE="no"
 
     [ -d "$HOME/storage" ] && HAS_STORAGE="yes"
     [ -f "$HOME/.termux/boot/boot-sshd" ] && HAS_BOOT="yes"
+    command -v termux-wake-lock >/dev/null 2>&1 && HAS_WAKE="yes"
 
     echo "  ┌─────────────────────────────────────────────┐"
     [ "$HAS_STORAGE" = "yes" ] && echo "  │  ✅  Storage      — akses penyimpanan  │" \
                                || echo "  │  ❌  Storage      — akses penyimpanan  │"
     [ "$HAS_BOOT" = "yes" ] && echo "  │  ✅  Termux:Boot  — auto-start sshd    │" \
                             || echo "  │  ❌  Termux:Boot  — auto-start sshd    │"
+    [ "$HAS_WAKE" = "yes" ] && echo "  │  ✅  Wake lock    — koneksi tetap saat mati layar │" \
+                            || echo "  │  ❌  Wake lock    — koneksi tetap saat mati layar │"
     echo "  └─────────────────────────────────────────────┘"
     echo ""
 
     if [ "$HAS_STORAGE" = "no" ] && confirm "  Setup storage permission" "y"; then
         termux-setup-storage
         echo "  Izininkan pop-up permission di Android"
+        echo ""
+    fi
+
+    if [ "$HAS_WAKE" = "no" ] && confirm "  Install wake lock (termux-api)" "y"; then
+        pkg install -y termux-api
+        echo "  Install aplikasi Termux:API dari F-Droid:"
+        echo "  https://f-droid.org/packages/com.termux.api/"
+        echo "  Setelah itu wake lock otomatis aktif saat sshd jalan"
         echo ""
     fi
 
@@ -251,6 +276,10 @@ if [ "$CONNECTION_OK" = "true" ] && [ "$AUTO" = "false" ] && confirm "Cek permis
         echo "  https://f-droid.org/packages/com.termux.boot/"
         echo "  Reboot HP agar sshd jalan otomatis"
         echo ""
+    fi
+
+    if [ "$HAS_WAKE" = "yes" ]; then
+        termux-wake-lock sshd 2>/dev/null && info "Wake lock aktif"
     fi
 
     info "Permission & fitur selesai dicek"

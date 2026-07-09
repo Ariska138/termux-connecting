@@ -143,14 +143,16 @@ if command -v termux-wake-lock >/dev/null; then
     termux-wake-lock sshd 2>/dev/null && info "Wake lock aktif — koneksi tetap terjaga saat layar mati"
 fi
 
-# battery optimization — matikan agar Termux tidak di-kill Android
-if command -v termux-battery-status >/dev/null 2>&1; then
-    : # termux-api tersedia
-else
-    echo "  Matikan battery optimization untuk Termux di Pengaturan:"
-    echo "  Setelan → Aplikasi → Termux → Baterai → Tidak dioptimalkan"
-    echo ""
+# notification — agar Android tidak kill Termux
+if command -v termux-notification >/dev/null; then
+    termux-notification -t "Termux Connecting" -c "SSH server berjalan — ${USERNAME}@${IP}:8022" --id sshd-keepalive --ongoing 2>/dev/null
 fi
+
+# battery optimization — buka setelan langsung
+echo "  Buka setelan battery optimization:"
+echo "  am start -a android.settings.IGNORE_BATTERY_OPTIMIZATION_SETTINGS"
+echo "  Lalu cari Termux → pilih 'Tidak dioptimalkan'"
+echo ""
 
 # ─── 6. Informasi Koneksi ───
 title "5. Informasi Koneksi"

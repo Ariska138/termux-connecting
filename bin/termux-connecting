@@ -21,6 +21,152 @@ run_timeout() {
     fi
 }
 
+prompt() {
+    local val default="$2"
+    echo -n "$1${default:+ [$default]}: " >&2
+    read -r val
+    echo "${val:-$default}"
+}
+
+# ─── Cloudflare Tunnel SSH (Akses Online) ───
+CF_API="https://api.cloudflare.com/client/v4"
+
+decode_tunnel_token() {
+    local f t
+    for f in "$HOME/.openclaw/tunnel-token-phone" "$HOME/.openclaw/tunnel-token"; do
+        if [ -f "$f" ]; then
+            t=$(cat "$f" 2>/dev/null | tr -d '\n')
+            [ -n "$t" ] && { echo "$t"; return 0; }
+        fi
+    done
+    return 1
+}
+
+setup_online() {
+    title "AKSES ONLINE — Cloudflare Tunnel SSH"
+    echo "  Agar HP reachable dari mana saja (mobil / beda WiFi)."
+    echo ""
+
+    local raw
+    raw=$(decode_tunnel_token) || { warn "Token tunnel (~/.openclaw/tunnel-token[-phone]) tidak ditemukan. Lewati."; return 0; }
+    local acc tun
+    acc=$(echo "$raw" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin).get('a',''))" 2>/dev/null)
+    tun=$(echo "$raw" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin).get('t',''))" 2>/dev/null)
+    [ -z "$acc" ] || [ -z "$tun" ] && { warn "Gagal decode token tunnel. Lewati."; return 0; }
+
+    local CF_TOKEN
+    CF_TOKEN=$(cat "$HOME/.openclaw/cf-api-token" 2>/dev/null | tr -d '\n')
+    [ -z "$CF_TOKEN" ] && { warn "cf-api-token (~/.openclaw/cf-api-token) tidak ditemukan. Lewati auto."; return 0; }
+
+    echo "  Account : $acc"
+    echo "  Tunnel  : $tun"
+    echo ""
+
+    local sub dom email HOSTNAME
+    sub=$(prompt "  ➤  Subdomain SSH" "ssh")
+    dom=$(prompt "  ➤  Domain" "a8star.finlup.id")
+    email=$(prompt "  ➤  Email admin (Cloudflare Access)" "")
+    HOSTNAME="${sub}.${dom}"
+
+    # pastikan sshd jalan
+    pgrep -x sshd >/dev/null || sshd 2>/dev/null
+
+    set +e
+    local cfg
+    cfg=$(curl -s --max-time 20 -H "Authorization: Bearer $CF_TOKEN" "$CF_API/accounts/$acc/cfd_tunnel/$tun/config")
+    local ok
+    ok=$(echo "$cfg" | python3 -c "import sys,json;print(json.load(sys.stdin).get('success',False))" 2>/dev/null)
+
+    if [ "$ok" != "True" ]; then
+        warn "API tidak bisa baca config tunnel (izin 'Cloudflare Tunnel: Edit' kurang?)."
+        echo ""
+        echo "  ┌─ SETUP MANUAL di Cloudflare Dashboard ────────────┐"
+        echo "  • Zero Trust → Networks → Tunnels → a8star-phone"
+        echo "    → Public Hostname → Add"
+        echo "      Subdomain : $sub"
+        echo "      Domain    : $dom"
+        echo "      Service   : ssh://localhost:8022"
+        echo "  • Zero Trust → Access → Applications → Add (Self-hosted)"
+        echo "      Domain    : $HOSTNAME"
+        echo "      Policy    : Allow email $email"
+        echo "  └─────────────────────────────────────────────────┘"
+        echo ""
+        echo "  Atau perluas cf-api-token dengan izin:"
+        echo "    Account: Cloudflare Tunnel: Edit"
+        echo "    Account: Cloudflare Access: Edit"
+        echo "  lalu jalankan: termux-connecting --online"
+        return 0
+    fi
+
+    # Merge SSH route ke ingress (hindari duplikat)
+    export CF_HOST="$HOSTNAME"
+    local newcfg
+    newcfg=$(echo "$cfg" | python3 -c "
+import sys,json,os
+d=json.load(sys.stdin)
+ing=d.get('ingress',[]) or []
+ing=[r for r in ing if r.get('hostname')!=os.environ['CF_HOST']]
+ing=[r for r in ing if r.get('service')!='ssh://localhost:8022']
+idx=len(ing)
+for i,r in enumerate(ing):
+    if str(r.get('service','')).startswith('http_status'):
+        idx=i; break
+ing.insert(idx,{'hostname':os.environ['CF_HOST'],'service':'ssh://localhost:8022','originRequest':{}})
+d['ingress']=ing
+print(json.dumps(d))
+")
+    local put
+    put=$(curl -s --max-time 20 -X PUT -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" -d "$newcfg" "$CF_API/accounts/$acc/cfd_tunnel/$tun/config")
+    local pok
+    pok=$(echo "$put" | python3 -c "import sys,json;print(json.load(sys.stdin).get('success',False))" 2>/dev/null)
+    if [ "$pok" != "True" ]; then
+        warn "Gagal PUT config tunnel. Setup manual (lihat pesan di atas)."
+        echo "$put" | head -c 300
+        return 0
+    fi
+    info "Config tunnel diperbarui: $HOSTNAME → ssh://localhost:8022"
+
+    # Access application (jika email diisi)
+    if [ -n "$email" ]; then
+        export CF_EMAIL="$email"
+        local apps
+        apps=$(curl -s --max-time 20 -H "Authorization: Bearer $CF_TOKEN" "$CF_API/accounts/$acc/access/apps")
+        local exists
+        exists=$(echo "$apps" | python3 -c "import sys,json,os;d=json.load(sys.stdin);print(any(a.get('name')==os.environ['CF_HOST'] for a in d.get('result',[])))" 2>/dev/null)
+        if [ "$exists" != "True" ]; then
+            local appbody
+            appbody=$(python3 -c "
+import json,os
+e=os.environ['CF_EMAIL']
+if '@' in e:
+    rule={'email':{'email':e}}
+elif e.startswith('@'):
+    rule={'email_domain':{'domain':e.lstrip('@')}}
+else:
+    rule={'group':{'id':e}}
+body={'name':os.environ['CF_HOST'],'domain':os.environ['CF_HOST'],'type':'self-hosted','session_duration':'24h','policies':[{'name':'allow','decision':'allow','include':[rule]}]}
+print(json.dumps(body))
+")
+            local aresp
+            aresp=$(curl -s --max-time 20 -X POST -H "Authorization: Bearer $CF_TOKEN" -H "Content-Type: application/json" -d "$appbody" "$CF_API/accounts/$acc/access/apps")
+            local aok
+            aok=$(echo "$aresp" | python3 -c "import sys,json;print(json.load(sys.stdin).get('success',False))" 2>/dev/null)
+            if [ "$aok" = "True" ]; then
+                info "Access application dibuat: $HOSTNAME"
+            else
+                warn "Gagal buat Access app (izin 'Cloudflare Access: Edit'?). Manual di dashboard."
+            fi
+        else
+            info "Access application sudah ada: $HOSTNAME"
+        fi
+    fi
+
+    info "Akses online siap: $HOSTNAME"
+    echo "  Restart tunnel agar config baru aktif:"
+    echo "  pkill cloudflared; bash ~/andorid-openclaw/scripts/start-tunnel.sh"
+    set -e
+}
+
 # ─── Helper: dapatkan IP dengan berbagai metode ───
 get_ip() {
     local ip=""
@@ -56,11 +202,13 @@ CHECK=false
 MONITOR=false
 HELP=false
 DEBUG=false
+ONLINE=false
 for arg in "$@"; do
     [ "$arg" = "-y" ] && AUTO=true
     [ "$arg" = "--check" ] || [ "$arg" = "--status" ] && CHECK=true
     [ "$arg" = "--monitor" ] || [ "$arg" = "--monitoring" ] && MONITOR=true
     [ "$arg" = "--help" ] || [ "$arg" = "-h" ] && HELP=true
+    [ "$arg" = "--online" ] && ONLINE=true
     [ "$arg" = "--debug" ] && DEBUG=true
 done
 
@@ -76,6 +224,7 @@ if $HELP; then
     echo "    -y             Setup otomatis (skip konfirmasi)"
     echo "    --check, --status  Tampilkan status SSH & jaringan"
     echo "    --monitor      Mode realtime monitoring (auto-restart sshd)"
+    echo "    --online       Setup akses online (Cloudflare Tunnel SSH)"
     echo "    --help, -h     Tampilkan bantuan ini"
     echo "    --debug        Aktifkan tracing (set -x)"
     echo ""
@@ -139,6 +288,11 @@ if $CHECK; then
     echo "  🖥  User      : $(whoami)"
     echo "  🔌 Port      : 8022"
     echo ""
+    exit 0
+fi
+
+if $ONLINE; then
+    setup_online
     exit 0
 fi
 
@@ -490,6 +644,13 @@ echo "----------------------------------------"
 info "Setup selesai!"
 echo ""
 
+# ─── 7. Akses Online (Cloudflare Tunnel SSH) ───
+if [ "$AUTO" = "false" ]; then
+    if confirm "Setup akses online (Cloudflare Tunnel SSH)?" "y"; then
+        setup_online
+    fi
+fi
+
 # ─── Menu setelah setup ───
 if [ "$AUTO" = "false" ]; then
     while true; do
@@ -500,6 +661,7 @@ if [ "$AUTO" = "false" ]; then
         echo "  4) Tampilkan ulang info koneksi"
         echo "  5) Cek permission & fitur"
         echo "  6) Realtime monitoring"
+        echo "  7) Setup akses online (Cloudflare Tunnel SSH)"
         echo ""
         echo -n "  Pilih [1]: "
         read -r post_choice
@@ -545,6 +707,7 @@ if [ "$AUTO" = "false" ]; then
                 [ "$HAS_WAKE" = "yes" ] && termux-wake-lock 2>/dev/null && info "Wake lock aktif"
                 ;;
             6) monitor_loop ;;
+            7) setup_online ;;
             *) break ;;
         esac
     done

@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 set -e
 
-VERSION="1.1.38"
+VERSION="1.1.56"
 CONFIG_DIR="$HOME/.config/termux-connecting"
 CONFIG_FILE="$CONFIG_DIR/config"
 DEVICES_DIR="$CONFIG_DIR/devices"
 ACTIVE_DEVICE=""
 SSH_PORT=8022
 SSH_KEY="$HOME/.ssh/id_ed25519_termux_connecting"
+ONLINE_HOST=""                       # Hostname Cloudflare Tunnel SSH (kosong = LAN saja)
+PROXY_BIN="$HOME/.local/bin/termux-connect-proxy"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; CYAN='\033[0;36m'; NC='\033[0m'
 info()  { echo -e "${GREEN}[✓]${NC} $1"; }
@@ -59,10 +61,43 @@ HOST_ALIAS="$name"
 SSH_USER="$SSH_USER"
 SSH_HOST="$SSH_HOST"
 SSH_PORT=$SSH_PORT
+ONLINE_HOST="$ONLINE_HOST"
 TELEGRAM_BOT_TOKEN="$TELEGRAM_BOT_TOKEN"
 TELEGRAM_CHAT_ID="$TELEGRAM_CHAT_ID"
 EOF
     chmod 600 "$DEVICES_DIR/$name"
+}
+
+ensure_cloudflared() {
+    command -v cloudflared >/dev/null 2>&1 && return 0
+    echo "  cloudflared belum ada. Menginstall..."
+    if command -v brew >/dev/null 2>&1; then
+        brew install cloudflared
+    elif command -v apt-get >/dev/null 2>&1; then
+        local arch=$(uname -m)
+        curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${arch}.deb" -o /tmp/cloudflared.deb \
+            && sudo apt-get install -y /tmp/cloudflared.deb
+    else
+        warn "Install cloudflared manual: https://developers.cloudflare.com/cloudflared/install/"
+        return 1
+    fi
+    command -v cloudflared >/dev/null 2>&1 && return 0 || return 1
+}
+
+ensure_proxy() {
+    mkdir -p "$(dirname "$PROXY_BIN")"
+    cat > "$PROXY_BIN" <<'EOF'
+#!/usr/bin/env bash
+# termux-connect-proxy — LAN dulu, fallback Cloudflare Tunnel SSH
+# args: <lan_host> <lan_port> <online_host>
+LAN_HOST="$1"; LAN_PORT="$2"; ONLINE_HOST="$3"
+if command -v nc >/dev/null 2>&1 && nc -z -w 2 "$LAN_HOST" "$LAN_PORT" 2>/dev/null; then
+    exec nc "$LAN_HOST" "$LAN_PORT"
+fi
+exec cloudflared access ssh --hostname "$ONLINE_HOST"
+EOF
+    chmod +x "$PROXY_BIN"
+    info "Proxy helper: $PROXY_BIN"
 }
 
 set_active() {
@@ -146,6 +181,12 @@ cmd_connection() {
     echo -n "  ➤  Port SSH [8022]: "; read -r port
     SSH_PORT="${port:-8022}"
 
+    # ── Dialog: Online hostname (Cloudflare Tunnel SSH) ──
+    echo ""
+    echo "  (Opsional) Akses online via Cloudflare Tunnel SSH."
+    echo "  Kosongkan jika hanya pakai LAN (PC & HP WiFi SAMA)."
+    ONLINE_HOST=$(prompt "  ➤  Online hostname (Cloudflare Tunnel SSH)" "ssh.a8star.finlup.id")
+
     # ── Konfirmasi ──
     echo ""
     echo "  ┌──────────────────────────────────────┐"
@@ -159,6 +200,10 @@ cmd_connection() {
         echo "  Baik, batalkan. Jalankan lagi saat siap."
         return
     fi
+
+    # Simpan config sebelum cek koneksi — biar IP dll tidak hilang walau SSH gagal
+    save_config "$HOST_ALIAS"
+    set_active "$HOST_ALIAS"
 
     echo ""
     echo "  ── Cek Ping ke $SSH_HOST ──"
@@ -279,7 +324,23 @@ cmd_connection() {
     if [ -f "$HOME/.ssh/config" ]; then
         sed -i '' "/^Host $HOST_ALIAS$/,/^$/d" "$HOME/.ssh/config" 2>/dev/null || true
     fi
-    cat >> "$HOME/.ssh/config" << EOF
+    if [ -n "$ONLINE_HOST" ]; then
+        ensure_cloudflared || warn "cloudflared gagal diinstall — fallback online tidak aktif"
+        ensure_proxy
+        cat >> "$HOME/.ssh/config" << EOF
+
+Host $HOST_ALIAS
+    User $SSH_USER
+    Port $SSH_PORT
+    IdentityFile $SSH_KEY
+    ProxyCommand $PROXY_BIN $SSH_HOST $SSH_PORT $ONLINE_HOST
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+EOF
+        chmod 600 "$HOME/.ssh/config"
+        info "SSH config siap (LAN + tunnel fallback): ssh $HOST_ALIAS"
+    else
+        cat >> "$HOME/.ssh/config" << EOF
 
 Host $HOST_ALIAS
     HostName $SSH_HOST
@@ -289,8 +350,9 @@ Host $HOST_ALIAS
     StrictHostKeyChecking no
     UserKnownHostsFile /dev/null
 EOF
-    chmod 600 "$HOME/.ssh/config"
-    info "SSH config siap: ssh $HOST_ALIAS"
+        chmod 600 "$HOME/.ssh/config"
+        info "SSH config siap (LAN): ssh $HOST_ALIAS"
+    fi
 
     # ── Telegram ──
     title "4. Telegram Alert (opsional)"
@@ -460,6 +522,8 @@ cmd_help() {
     echo "  termux-connect-pc version            Versi"
     echo ""
     echo "Multi-device: kelola beberapa HP Termux dari satu PC."
+    echo "Online: isi 'Online hostname' saat connection → SSH config pakai"
+    echo "  ProxyCommand LAN dulu, fallback Cloudflared Tunnel SSH."
     echo "Telegram alert otomatis ke admin saat koneksi putus."
     echo ""
 }

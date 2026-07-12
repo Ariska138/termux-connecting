@@ -11,7 +11,7 @@ Project untuk setup Termux dan koneksi SSH dari PC/Mac.
 
 | Command | Platform | Fungsi |
 |---------|----------|--------|
-| `termux-connecting` | Termux | Setup device: update, git/node, passwd, lihat IP |
+| `termux-connecting` | Termux | Setup device: update, git/node, passwd, lihat IP, akses online (--online) |
 | `termux-connect-pc` | PC/Mac | Koneksi ke Termux: connection, check, help, version |
 
 ## Subcommand (PC)

@@ -39,6 +39,19 @@ Simpan info username dan IP yang muncul. Ini yang akan dipakai dari PC.
 > ```
 > Cek IP kapan saja: `ip a | grep inet`
 
+### 2b. Akses Online (Cloudflare Tunnel SSH)
+
+Agar HP reachable dari mana saja (misal di mobil / beda WiFi), jalankan:
+
+```bash
+termux-connecting --online
+```
+
+Script akan otomatis menambahkan hostname SSH ke Cloudflare Tunnel (`ssh.a8star.finlup.id → ssh://localhost:8022`)
+lewat Cloudflare API, plus membuat Cloudflare Access application. Butuh `cf-api-token`
+(`~/.openclaw/cf-api-token`) dengan izin `Cloudflare Tunnel: Edit` + `Cloudflare Access: Edit`.
+Jika izin kurang, script akan mencetak panduan **setup manual** di dashboard.
+
 ### 3. Install & Koneksi dari PC/Mac
 
 Di komputer, install:
@@ -66,7 +79,9 @@ Isi dengan username dan IP yang ditampilkan di langkah 2.
 Script akan:
 - Cek koneksi (key-based dulu, fallback ke password)
 - Tawarkan buat SSH key agar koneksi tanpa password
-- Buat SSH config alias
+- Tanya **Online hostname** (default `ssh.a8star.finlup.id`) untuk akses via Cloudflare Tunnel
+- Buat SSH config alias dengan **ProxyCommand LAN dulu, fallback Cloudflared Tunnel**
+- Install `cloudflared` (jika belum ada) + buat proxy helper
 - **Hanya first run**: tawarkan setup **Telegram Alert**
 
 #### Telegram Alert (opsional, first run saja)
@@ -110,7 +125,11 @@ Setelah setup, cukup:
 ssh termux-a8star
 ```
 
-Atau manual:
+SSH config menggunakan **ProxyCommand LAN dulu, fallback Cloudflared Tunnel** —
+jadi di jaringan sama langsung konek cepat, di luar jaringan otomatis lewat
+`ssh.a8star.finlup.id` (butuh Cloudflare Access).
+
+Atau manual (LAN):
 ```bash
 ssh -p 8022 u0_a237@192.168.1.8
 ```
